@@ -25,3 +25,15 @@ Com PostgreSQL 16 local e migrations aplicadas:
 - Gate completo final com PostgreSQL: **43 testes aprovados, 1 teste LocalStack pulado, 0 falhas**; build, migration check e `git diff --check` também passaram.
 
 O teste `test/integration/sqs-localstack.spec.ts` e o comando `bun run test:sqs:real` foram adicionados para execução end-to-end, mas não foram declarados como aprovados nesta sessão: `docker --version` e `docker compose version` retornaram `command not found`, e a porta LocalStack 4566 não estava disponível. Reprodução: instalar Docker Compose, executar `docker compose up -d postgres localstack`, `bun run db:migrate` e então `bun run test:sqs:real`.
+
+
+## Continuação — outbox e reconciliação (2026-11-14)
+
+Publisher outbox validado contra PostgreSQL 16 real:
+
+- `test/integration/outbox-publisher.spec.ts`: 3 testes aprovados — envio e marcação pós-publicação; somente um de dois publishers concorrentes reclama a mesma linha; falha libera lease e agenda retry.
+- `test/integration/wallet-persistence.spec.ts`: cenário adicional aprovado — detecta divergência entre saldo persistido e soma do ledger, retorna diferença exata e mantém o saldo original sem autocorreção.
+- `bun run db:migrate`: quatro migrations aplicadas, incluindo `Migration20261114140000`; `bun run db:migration:check`: nenhuma migration pendente.
+- Validação corrente completa: 30 testes unitários aprovados, 25 integrações PostgreSQL aprovadas, 1 teste LocalStack pulado, 0 falhas. Typecheck, lint, build e format check aprovados.
+
+Durante a primeira execução dos novos testes, o SQL usava placeholders `$1` diretamente em `Connection.execute`; o MikroORM exige `?` posicionais. Os bindings foram corrigidos e os testes reais passaram. O teste end-to-end de SQS FIFO segue pendente porque não há Docker/LocalStack no sandbox; os resultados acima não o incluem.

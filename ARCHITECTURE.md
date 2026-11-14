@@ -1,13 +1,34 @@
-# Arquitetura
+# Arquitetura e estado da implementação
 
-A solução usa NestJS + TypeORM + PostgreSQL. O domínio monetário usa strings com escala fixa de duas casas e `decimal.js`; dinheiro nunca é representado por `number`. O saldo é protegido por `SELECT FOR UPDATE` na transação SQL e o banco aplica `CHECK balance >= 0`, unicidade de wallet/transação e trigger append-only no ledger.
+## Stack e limites
 
-A primeira entrega implementa wallets, OPENING atômica, BET/WIN/LOSS/REFUND/ROLLBACK básicos, idempotência persistente por `(providerId, idempotencyKey)`, hash SHA-256 de JSON canônico e replay com snapshot do saldo original. A autenticação não foi implementada por não pontuar no desafio; o ponto de extensão é um guard NestJS futuro.
+A aplicação é um monólito modular NestJS em Bun/TypeScript, com MikroORM e PostgreSQL. MikroORM é a única estratégia ativa de mapeamento e migrations. O código TypeORM legado foi removido para evitar caminhos divergentes de persistência. O domínio monetário recebe e serializa strings decimais com escala fixa de duas casas; `decimal.js` é usado para aritmética. Nenhum valor monetário passa por `number`.
 
-Pendências conscientes: inbox/outbox, consumidores SQS, worker de referências pendentes, health readiness real, paginação/reconciliação e testes de PostgreSQL/SQS precisam da infraestrutura Docker, ausente neste sandbox. Não são declarados como concluídos.
+Autenticação está fora do escopo implementado, conforme permitido pelo enunciado. Os endpoints HTTP não estão autenticados e a fila é tratada como canal interno confiável; antes de produção, integrar IdP OIDC e validar identidade/allowlist de cada provedor.
 
-## Plano arquitetural da Fase 0
+## Consistência financeira
 
-O planejamento completo para a implementação incremental está em [`docs/20_ARCHITECTURE_PLAN.md`](./docs/20_ARCHITECTURE_PLAN.md), incluindo organização DDD, diagrama de componentes, modelo lógico, fluxos financeiros, estratégia de locks, idempotência, inbox/outbox, referências fora de ordem, contratos HTTP, testes e dependências entre fases.
+A wallet é a unidade de concorrência. O caso de uso bloqueia a linha da wallet com `SELECT ... FOR UPDATE`, valida contexto/moeda/saldo e persiste transação, alteração de saldo, ledger, outbox e Inbox (quando aplicável) dentro da mesma transação SQL. Índices únicos, `CHECK(balance >= 0)`, checks aritméticos do ledger e trigger append-only protegem invariantes no PostgreSQL. Wallets diferentes não compartilham lock global.
 
-As decisões formais desta fase estão em [`docs/02_ADR_REGISTER.md`](./docs/02_ADR_REGISTER.md). O plano escolhe MikroORM como ORM de implementação, apesar da implementação histórica ainda usar TypeORM; essa migração é uma decisão para a próxima fase de código e não foi executada nesta tarefa.
+A idempotência durável é por `(providerId, idempotencyKey)` e `(providerId, externalTransactionId)`. O payload de negócio é canonizado e hasheado em SHA-256. Reuso da chave com hash diferente é conflito; replay idêntico devolve o snapshot salvo sem repetir efeitos. O saldo inicial positivo cria `OPENING` e um crédito de ledger atomicamente.
+
+## Mensageria e recuperação
+
+O consumer da fila `wager-transactions.fifo` usa Inbox única por `(consumerName,messageId)` e chama o mesmo `WagerProcessingService` do HTTP. A confirmação SQS ocorre somente após o commit SQL. A redrive policy da fila de comandos encaminha mensagens que não podem ser confirmadas para `wager-transactions-dlq.fifo`. O shutdown interrompe polling e drena operações em andamento.
+
+Eventos são inseridos na Outbox na transação financeira. `OutboxPublisherWorker` seleciona lotes com `FOR UPDATE SKIP LOCKED`, define `claim_token` e lease, publica fora da transação na fila `wager-events.fifo` e só então marca `published_at`. Falhas liberam a lease e agendam retry exponencial limitado a cinco minutos entre tentativas. Se o processo cair depois do envio e antes da marcação SQL, o evento pode ser reenviado; o contrato é at-least-once e consumidores devem deduplicar por `eventId`.
+
+Referências de REFUND/ROLLBACK ausentes ficam em `PENDING_REFERENCE`; o worker reprocessa com backoff e TTL/limite de tentativas. A expiração persiste rejeição auditável, evento e failure code sem mover saldo.
+
+## Consultas, saúde e observabilidade
+
+O ledger é consultável por cursor estável e opaco. A reconciliação compara, em uma única consulta PostgreSQL, o saldo materializado com a soma de créditos menos débitos e o número de lançamentos verificados. Ela retorna divergências e não corrige saldo automaticamente.
+
+`/health/live` reporta somente a vida do processo. `/health/ready` testa a conexão PostgreSQL e as filas SQS de comando e evento, retornando 503 se alguma dependência estiver indisponível. `/metrics` expõe contadores, gauges e histogramas no formato Prometheus por processo; o Prometheus deve agregar instâncias. Os logs de processamento são JSON e não incluem payload monetário.
+
+## Validação atual
+
+- Typecheck, lint, format check, build e migrations MikroORM: aprovados; migration check sem pendências.
+- 30 testes unitários aprovados.
+- 25 testes de integração PostgreSQL aprovados, inclusive concorrência `SKIP LOCKED` entre publishers e divergência detectada pela reconciliação.
+- 1 teste end-to-end LocalStack SQS ficou pulado. Docker/LocalStack não estão disponíveis neste sandbox, então esse gate permanece pendente e não é tratado como aprovado.
