@@ -175,6 +175,9 @@ export class OutboxOrmEntity {
   @Property({ fieldName: 'claimed_until', nullable: true })
   claimedUntil?: Date;
 
+  @Property({ fieldName: 'claim_token', type: 'uuid', nullable: true })
+  claimToken?: string;
+
   @Property({ fieldName: 'published_at', nullable: true })
   publishedAt?: Date;
 }

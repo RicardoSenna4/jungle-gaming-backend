@@ -1,5 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectEntityManager } from '@mikro-orm/nestjs';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { randomUUID } from 'node:crypto';
 import { Money } from '../../domain/money';
@@ -37,6 +41,15 @@ export interface LedgerPage {
   nextCursor?: string;
 }
 
+export interface WalletReconciliation {
+  walletId: string;
+  storedBalance: { amount: string; currency: string };
+  calculatedBalance: { amount: string; currency: string };
+  difference: { amount: string; currency: string };
+  consistent: boolean;
+  checkedEntries: number;
+}
+
 export function encodeLedgerCursor(cursor: LedgerCursor): string {
   return Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url');
 }
@@ -49,13 +62,13 @@ export function decodeLedgerCursor(value: string): LedgerCursor {
     if (typeof parsed.createdAt !== 'string' || typeof parsed.id !== 'string') throw new Error();
     return { createdAt: parsed.createdAt, id: parsed.id };
   } catch {
-    throw new ConflictException('INVALID_LEDGER_CURSOR');
+    throw new BadRequestException('INVALID_LEDGER_CURSOR');
   }
 }
 
 @Injectable()
 export class WalletRepository {
-  constructor(@InjectEntityManager('default') private readonly em: EntityManager) {}
+  constructor(private readonly em: EntityManager) {}
 
   async create(playerId: string, initialBalance: Money): Promise<CreateWalletResult> {
     const walletId = randomUUID();
@@ -132,7 +145,7 @@ export class WalletRepository {
 
   async findLedger(walletId: string, limit: number, cursor?: string): Promise<LedgerPage> {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
-      throw new ConflictException('INVALID_LEDGER_LIMIT');
+      throw new BadRequestException('INVALID_LEDGER_LIMIT');
     }
     await this.findById(walletId);
     const params: unknown[] = [walletId];
@@ -175,6 +188,41 @@ export class WalletRepository {
     };
   }
 
+  async reconcile(walletId: string): Promise<WalletReconciliation> {
+    const rows = await this.em.getConnection().execute<ReconciliationRow[]>(
+      `select wallet.id as wallet_id,
+              wallet.currency,
+              wallet.balance::text as stored_balance,
+              coalesce(
+                sum(case ledger.direction
+                      when 'CREDIT' then ledger.amount
+                      when 'DEBIT' then -ledger.amount
+                      else 0
+                    end),
+                0
+              )::numeric(20,2)::text as calculated_balance,
+              count(ledger.id)::text as checked_entries
+         from wallets as wallet
+         left join wallet_ledger_entries as ledger on ledger.wallet_id = wallet.id
+        where wallet.id = ?::uuid
+        group by wallet.id, wallet.currency, wallet.balance`,
+      [walletId],
+    );
+    const row = rows[0];
+    if (!row) throw new NotFoundException('WALLET_NOT_FOUND');
+    const stored = Money.from({ amount: row.stored_balance, currency: row.currency });
+    const calculated = Money.from({ amount: row.calculated_balance, currency: row.currency });
+    const difference = stored.subtract(calculated);
+    return {
+      walletId: row.wallet_id,
+      storedBalance: stored.toJSON(),
+      calculatedBalance: calculated.toJSON(),
+      difference: difference.toJSON(),
+      consistent: difference.isZero(),
+      checkedEntries: Number.parseInt(row.checked_entries, 10),
+    };
+  }
+
   private isUniqueViolation(error: unknown): boolean {
     return typeof error === 'object' && error !== null && 'code' in error && error.code === '23505';
   }
@@ -190,6 +238,14 @@ interface LedgerRow {
   balance_before: string;
   balance_after: string;
   created_at: string | Date;
+}
+
+interface ReconciliationRow {
+  wallet_id: string;
+  currency: string;
+  stored_balance: string;
+  calculated_balance: string;
+  checked_entries: string;
 }
 
 export const persistenceEntities = [

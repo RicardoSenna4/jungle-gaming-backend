@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Money } from '../../domain/money';
-import { LedgerPage, WalletRepository } from './wallet-repository';
+import { LedgerPage, WalletReconciliation, WalletRepository } from './wallet-repository';
 
 @Injectable()
 export class WalletService {
@@ -16,5 +16,9 @@ export class WalletService {
 
   getLedger(walletId: string, limit = 50, cursor?: string): Promise<LedgerPage> {
     return this.wallets.findLedger(walletId, limit, cursor);
+  }
+
+  reconcile(walletId: string): Promise<WalletReconciliation> {
+    return this.wallets.reconcile(walletId);
   }
 }

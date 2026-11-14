@@ -1,5 +1,4 @@
-import { Injectable } from '@nestjs/common';
-import { InjectEntityManager } from '@mikro-orm/nestjs';
+import { Injectable, Optional } from '@nestjs/common';
 import { LockMode } from '@mikro-orm/core';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { randomUUID } from 'node:crypto';
@@ -7,6 +6,7 @@ import { Money } from '../domain/money';
 import { LedgerDirection } from '../domain/ledger';
 import { WagerKind, WagerStatus } from '../domain/wager-transaction';
 import { canonicalHash } from './canonical-hash';
+import { MetricsService } from '../infrastructure/telemetry/metrics.service';
 import {
   InboxOrmEntity,
   LedgerOrmEntity,
@@ -38,6 +38,25 @@ export interface ProcessingResult {
   balance: { amount: string; currency: string };
   idempotentReplay: boolean;
   failureCode?: string;
+}
+
+export interface WagerTransactionView {
+  transactionId: string;
+  providerId: string;
+  externalTransactionId: string;
+  playerId: string;
+  walletId: string;
+  roundId: string;
+  gameId: string;
+  kind: string;
+  money: { amount: string; currency: string };
+  status: string;
+  failureCode?: string;
+  referenceExternalTransactionId?: string;
+  referenceTransactionId?: string;
+  createdAt?: string;
+  processedAt?: string;
+  response?: Record<string, unknown>;
 }
 
 export class FinancialProcessingError extends Error {
@@ -73,7 +92,51 @@ const PENDING_REFERENCE_TTL_MS = 5 * 60 * 1000;
 
 @Injectable()
 export class WagerProcessingService {
-  constructor(@InjectEntityManager('default') private readonly em: EntityManager) {}
+  constructor(
+    private readonly em: EntityManager,
+    @Optional() private readonly metrics?: MetricsService,
+  ) {}
+
+  async findTransactionById(transactionId: string): Promise<WagerTransactionView | null> {
+    const transaction = await this.em.findOne(WagerTransactionOrmEntity, { id: transactionId });
+    return transaction ? this.toTransactionView(transaction) : null;
+  }
+
+  async findProviderTransaction(
+    providerId: string,
+    externalTransactionId: string,
+  ): Promise<WagerTransactionView | null> {
+    const transaction = await this.em.findOne(WagerTransactionOrmEntity, {
+      providerId,
+      externalTransactionId,
+    });
+    return transaction ? this.toTransactionView(transaction) : null;
+  }
+
+  private toTransactionView(transaction: WagerTransactionOrmEntity): WagerTransactionView {
+    return {
+      transactionId: transaction.id,
+      providerId: transaction.providerId,
+      externalTransactionId: transaction.externalTransactionId,
+      playerId: transaction.playerId,
+      walletId: transaction.walletId,
+      roundId: transaction.roundId,
+      gameId: transaction.gameId,
+      kind: transaction.kind,
+      money: { amount: transaction.amount, currency: transaction.currency },
+      status: transaction.status,
+      ...(transaction.failureCode ? { failureCode: transaction.failureCode } : {}),
+      ...(transaction.referenceExternalTransactionId
+        ? { referenceExternalTransactionId: transaction.referenceExternalTransactionId }
+        : {}),
+      ...(transaction.referenceTransactionId
+        ? { referenceTransactionId: transaction.referenceTransactionId }
+        : {}),
+      ...(transaction.createdAt ? { createdAt: transaction.createdAt.toISOString() } : {}),
+      ...(transaction.processedAt ? { processedAt: transaction.processedAt.toISOString() } : {}),
+      ...(transaction.responseSnapshot ? { response: transaction.responseSnapshot } : {}),
+    };
+  }
 
   async process(
     idempotencyKey: string,
@@ -109,6 +172,7 @@ export class WagerProcessingService {
           ) {
             return this.processPendingInTransaction(tx, existing, input, money, consumerContext);
           }
+          this.metrics?.increment('wager_idempotent_replays_total');
           return this.finishInbox(tx, consumerContext, {
             ...this.readSnapshot(existing.responseSnapshot),
             idempotentReplay: true,
@@ -170,18 +234,22 @@ export class WagerProcessingService {
           if (concurrent.payloadHash !== payloadHash) {
             throw new FinancialProcessingError('IDEMPOTENCY_PAYLOAD_CONFLICT', 409);
           }
+          this.metrics?.increment('wager_idempotent_replays_total');
           return {
             ...this.readSnapshot(concurrent.responseSnapshot),
             idempotentReplay: true,
           };
         }
         if (retryAttempt < 3) {
+          this.metrics?.increment('wager_transaction_retries_total', { reason: 'unique_conflict' });
           await this.sleep(10 * (retryAttempt + 1));
           return this.process(idempotencyKey, input, retryAttempt + 1, consumerContext);
         }
         throw new FinancialProcessingError('EXTERNAL_TRANSACTION_EXISTS', 409);
       }
       if (this.isRetryableTransaction(error) && retryAttempt < 3) {
+        this.metrics?.increment('wager_transaction_retries_total', { reason: 'serialization' });
+        this.metrics?.increment('wager_lock_conflicts_total');
         await this.sleep(10 * (retryAttempt + 1));
         return this.process(idempotencyKey, input, retryAttempt + 1, consumerContext);
       }

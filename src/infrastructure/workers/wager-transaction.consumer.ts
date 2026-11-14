@@ -1,6 +1,7 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
 import {
   DeleteMessageCommand,
+  GetQueueAttributesCommand,
   Message,
   ReceiveMessageCommand,
   SQSClient,
@@ -10,6 +11,7 @@ import {
   SubmitInput,
   WagerProcessingService,
 } from '../../application/wager-processing.service';
+import { MetricsService } from '../telemetry/metrics.service';
 
 interface WagerTransactionEnvelope {
   messageId: string;
@@ -27,10 +29,14 @@ export interface ConsumerHandleResult {
 
 @Injectable()
 export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(WagerTransactionConsumer.name);
   private readonly consumerName = process.env.SQS_CONSUMER_NAME ?? 'wager-transaction-consumer-v1';
   private readonly queueUrl =
     process.env.SQS_QUEUE_URL ??
     `${process.env.SQS_ENDPOINT ?? 'http://localhost:4566'}/000000000000/wager-transactions.fifo`;
+  private readonly dlqQueueUrl =
+    process.env.SQS_DLQ_QUEUE_URL ??
+    `${process.env.SQS_ENDPOINT ?? 'http://localhost:4566'}/000000000000/wager-transactions-dlq.fifo`;
   private readonly sqs = new SQSClient({
     region: process.env.AWS_REGION ?? 'us-east-1',
     endpoint: process.env.SQS_ENDPOINT ?? 'http://localhost:4566',
@@ -42,8 +48,12 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
   private stopping = false;
   private polling?: Promise<void>;
   private readonly inFlight = new Set<Promise<unknown>>();
+  private lastDlqSampleAt = 0;
 
-  constructor(private readonly service: WagerProcessingService) {}
+  constructor(
+    private readonly service: WagerProcessingService,
+    @Optional() private readonly metrics?: MetricsService,
+  ) {}
 
   onModuleInit(): void {
     if (process.env.ENABLE_SQS_CONSUMER === 'true') this.start();
@@ -68,10 +78,13 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
   }
 
   async handleMessage(message: Message): Promise<ConsumerHandleResult> {
+    const startedAt = Date.now();
     let envelope: WagerTransactionEnvelope;
     try {
       envelope = this.parseEnvelope(message);
     } catch {
+      this.metrics?.increment('sqs_messages_unacked_total', { reason: 'invalid_message' });
+      this.recordMessageDuration(startedAt);
       return { acknowledged: false, failureCode: 'INVALID_MESSAGE' };
     }
     try {
@@ -79,6 +92,23 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
         consumerName: this.consumerName,
         messageId: envelope.messageId,
       });
+      this.metrics?.increment('wager_transactions_total', {
+        source: 'sqs',
+        kind: envelope.data.kind.toLowerCase(),
+        status: result.status.toLowerCase(),
+      });
+      this.logger.log(
+        JSON.stringify({
+          event: 'wager_sqs_processed',
+          correlationId: envelope.data.externalTransactionId,
+          messageId: envelope.messageId,
+          transactionId: result.transactionId,
+          walletId: envelope.data.walletId,
+          providerId: envelope.data.providerId,
+          status: result.status,
+        }),
+      );
+      this.recordMessageDuration(startedAt);
       return {
         acknowledged: true,
         transactionId: result.transactionId,
@@ -87,8 +117,12 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
       };
     } catch (error) {
       if (error instanceof FinancialProcessingError) {
+        this.metrics?.increment('sqs_messages_unacked_total', { reason: error.code });
+        this.recordMessageDuration(startedAt);
         return { acknowledged: false, failureCode: error.code };
       }
+      this.metrics?.increment('sqs_messages_unacked_total', { reason: 'infrastructure_error' });
+      this.recordMessageDuration(startedAt);
       return { acknowledged: false };
     }
   }
@@ -104,6 +138,8 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
             VisibilityTimeout: Number(process.env.SQS_VISIBILITY_TIMEOUT ?? 30),
           }),
         );
+        this.metrics?.increment('sqs_messages_received_total', {}, response.Messages?.length ?? 0);
+        if (Date.now() - this.lastDlqSampleAt >= 30_000) await this.refreshDlqGauge();
         for (const message of response.Messages ?? []) {
           const task = this.handleAndAck(message);
           this.inFlight.add(task);
@@ -124,6 +160,21 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
     await this.sqs.send(
       new DeleteMessageCommand({ QueueUrl: this.queueUrl, ReceiptHandle: message.ReceiptHandle }),
     );
+    this.metrics?.increment('sqs_messages_acknowledged_total');
+  }
+
+  private async refreshDlqGauge(): Promise<void> {
+    const response = await this.sqs.send(
+      new GetQueueAttributesCommand({
+        QueueUrl: this.dlqQueueUrl,
+        AttributeNames: ['ApproximateNumberOfMessages'],
+      }),
+    );
+    this.metrics?.setGauge(
+      'sqs_dlq_messages',
+      Number(response.Attributes?.ApproximateNumberOfMessages ?? 0),
+    );
+    this.lastDlqSampleAt = Date.now();
   }
 
   private parseEnvelope(message: Message): WagerTransactionEnvelope {
@@ -142,5 +193,11 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
       throw new Error('INVALID_MESSAGE');
     }
     return envelope as WagerTransactionEnvelope;
+  }
+
+  private recordMessageDuration(startedAt: number): void {
+    this.metrics?.observe('wager_processing_duration_seconds', (Date.now() - startedAt) / 1_000, {
+      source: 'sqs',
+    });
   }
 }

@@ -259,11 +259,40 @@
           "comment": null,
           "enumItems": [],
           "mappedType": "datetime"
+        },
+        "claim_token": {
+          "name": "claim_token",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "uuid"
         }
       },
       "name": "outbox_messages",
       "schema": "public",
       "indexes": [
+        {
+          "columnNames": [
+            "published_at",
+            "next_attempt_at",
+            "claimed_until",
+            "occurred_at"
+          ],
+          "composite": true,
+          "constraint": false,
+          "keyName": "outbox_claim_idx",
+          "unique": false,
+          "primary": false
+        },
         {
           "columnNames": [
             "published_at",
@@ -285,6 +314,18 @@
           "keyName": "outbox_messages_pkey",
           "unique": true,
           "primary": true
+        },
+        {
+          "columnNames": [
+            "occurred_at",
+            "id"
+          ],
+          "composite": true,
+          "constraint": false,
+          "keyName": "outbox_unpublished_order_idx",
+          "unique": false,
+          "primary": false,
+          "expression": "CREATE INDEX outbox_unpublished_order_idx ON public.outbox_messages USING btree (occurred_at, id) WHERE (published_at IS NULL)"
         }
       ],
       "checks": [

@@ -9,6 +9,10 @@ import { WalletController } from './interfaces/http/wallet.controller';
 import mikroOrmConfig from './infrastructure/database/mikro-orm.config';
 import { PendingReferenceWorker } from './infrastructure/workers/pending-reference.worker';
 import { WagerTransactionConsumer } from './infrastructure/workers/wager-transaction.consumer';
+import { OutboxPublisherWorker } from './infrastructure/workers/outbox-publisher.worker';
+import { SqsInfrastructureClient } from './infrastructure/workers/sqs-infrastructure.client';
+import { HealthService } from './infrastructure/telemetry/health.service';
+import { MetricsService } from './infrastructure/telemetry/metrics.service';
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true }), MikroOrmModule.forRoot(mikroOrmConfig)],
   controllers: [AppController, WalletController],
@@ -18,6 +22,10 @@ import { WagerTransactionConsumer } from './infrastructure/workers/wager-transac
     WalletService,
     PendingReferenceWorker,
     WagerTransactionConsumer,
+    OutboxPublisherWorker,
+    SqsInfrastructureClient,
+    HealthService,
+    MetricsService,
   ],
 })
 export class AppModule {}

@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Logger,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { WalletService } from '../../application/wallets/wallet-service';
 
 interface CreateWalletBody {
@@ -8,6 +19,8 @@ interface CreateWalletBody {
 
 @Controller('wallets')
 export class WalletController {
+  private readonly logger = new Logger(WalletController.name);
+
   constructor(private readonly wallets: WalletService) {}
 
   @Post()
@@ -26,7 +39,26 @@ export class WalletController {
     @Query('cursor') cursor?: string,
     @Query('limit') rawLimit?: string,
   ) {
-    const limit = rawLimit === undefined ? 50 : Number.parseInt(rawLimit, 10);
+    if (rawLimit !== undefined && !/^\d+$/.test(rawLimit)) {
+      throw new BadRequestException('INVALID_LEDGER_LIMIT');
+    }
+    const limit = rawLimit === undefined ? 50 : Number(rawLimit);
     return this.wallets.getLedger(walletId, limit, cursor);
+  }
+
+  @Post(':walletId/reconciliation')
+  @HttpCode(HttpStatus.OK)
+  async reconcile(@Param('walletId') walletId: string) {
+    const result = await this.wallets.reconcile(walletId);
+    if (!result.consistent) {
+      this.logger.warn(
+        JSON.stringify({
+          event: 'wallet_reconciliation_mismatch',
+          walletId,
+          checkedEntries: result.checkedEntries,
+        }),
+      );
+    }
+    return result;
   }
 }

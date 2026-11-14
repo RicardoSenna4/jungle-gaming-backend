@@ -1,5 +1,4 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { InjectEntityManager } from '@mikro-orm/nestjs';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { WagerStatus } from '../../domain/wager-transaction';
 import { WagerProcessingService } from '../../application/wager-processing.service';
@@ -20,7 +19,7 @@ export class PendingReferenceWorker implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly service: WagerProcessingService,
-    @InjectEntityManager('default') private readonly em: EntityManager,
+    private readonly em: EntityManager,
   ) {}
 
   onModuleInit(): void {

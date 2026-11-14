@@ -29,7 +29,7 @@ describeIntegration('wallet persistence with PostgreSQL', () => {
     await em
       .getConnection()
       .execute(
-        'truncate table outbox_messages, wallet_ledger_entries, wager_transactions, wallets cascade',
+        'truncate table inbox_messages, outbox_messages, wallet_ledger_entries, wager_transactions, wallets cascade',
       );
   });
 
@@ -55,6 +55,33 @@ describeIntegration('wallet persistence with PostgreSQL', () => {
       await em.count(WagerTransactionOrmEntity, { kind: 'OPENING', status: 'PROCESSED' }),
     ).toBe(1);
     expect(await em.count(LedgerOrmEntity, { direction: 'CREDIT', amount: '100.10' })).toBe(1);
+  });
+
+  it('detects a materialized-balance mismatch without automatically correcting it', async () => {
+    const wallet = await repository.create(
+      'player-reconcile',
+      Money.from({ amount: '50.00', currency: 'BRL' }),
+    );
+    await em
+      .getConnection()
+      .execute('update wallets set balance = ? where id = ?', ['49.00', wallet.id]);
+
+    const result = await repository.reconcile(wallet.id);
+    const persisted = await em
+      .getConnection()
+      .execute<Array<{ balance: string }>>(
+        'select balance::text as balance from wallets where id = ?',
+        [wallet.id],
+      );
+
+    expect(result).toMatchObject({
+      storedBalance: { amount: '49.00', currency: 'BRL' },
+      calculatedBalance: { amount: '50.00', currency: 'BRL' },
+      difference: { amount: '-1.00', currency: 'BRL' },
+      consistent: false,
+      checkedEntries: 1,
+    });
+    expect(persisted[0]?.balance).toBe('49.00');
   });
 
   it('rejects duplicate player and currency while allowing another currency', async () => {
