@@ -8,7 +8,7 @@ aws() {
   AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-test}" \
   AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test}" \
   AWS_DEFAULT_REGION="$region" \
-  aws --endpoint-url "$endpoint" "$@"
+  command aws --endpoint-url "$endpoint" "$@"
 }
 
 aws sqs create-queue \
