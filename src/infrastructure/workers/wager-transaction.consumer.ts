@@ -204,7 +204,7 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
     const valid =
       typeof envelope.messageId === 'string' && envelope.messageId.trim().length > 0 &&
       envelope.type === 'WagerTransactionRequested' &&
-      typeof iso === 'string' && /^\\d{4}-\\d{2}-\\d{2}T/.test(iso) &&
+      typeof iso === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(iso) &&
       Number.isFinite(Date.parse(iso)) &&
       typeof data === 'object' && data !== null &&
       ['providerId', 'externalTransactionId', 'idempotencyKey', 'playerId',
@@ -214,7 +214,7 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
       ['BET', 'WIN', 'LOSS', 'REFUND', 'ROLLBACK'].includes(data.kind) &&
       typeof data.money === 'object' && data.money !== null &&
       typeof data.money.amount === 'string' &&
-      /^(0|[1-9]\\d*)\\.\\d{2}$/.test(data.money.amount) &&
+      /^(0|[1-9]\d*)\.\d{2}$/.test(data.money.amount) &&
       Number(data.money.amount) > 0 &&
       typeof data.money.currency === 'string' &&
       /^[A-Z]{3}$/.test(data.money.currency) &&

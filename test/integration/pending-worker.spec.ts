@@ -59,7 +59,7 @@ describeIntegration('NestJS scheduled pending-reference worker', () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
     expect(status).toBe('PROCESSED');
-    expect(await em.count(LedgerOrmEntity, { walletId: wallet.id, direction: 'CREDIT' })).toBe(2);
+    expect(await em.fork().count(LedgerOrmEntity, { walletId: wallet.id, direction: 'CREDIT' })).toBe(2);
     worker.stop();
   });
 });

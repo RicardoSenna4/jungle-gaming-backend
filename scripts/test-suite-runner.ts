@@ -23,6 +23,7 @@ const postgresTargets: TestTarget[] = [
   { id: 'concurrency', path: 'test/integration/concurrency.spec.ts', integration: true },
   { id: 'http-api', path: 'test/integration/http-api.spec.ts', integration: true },
   { id: 'outbox-publisher', path: 'test/integration/outbox-publisher.spec.ts', integration: true },
+  { id: 'pending-worker', path: 'test/integration/pending-worker.spec.ts', integration: true },
   {
     id: 'reversal-processing',
     path: 'test/integration/reversal-processing.spec.ts',
