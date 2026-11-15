@@ -56,6 +56,31 @@ jobs:
 
           docker compose ps
           exit 1
+      - name: Wait for LocalStack queues
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          set -euo pipefail
+          for attempt in {1..60}; do
+            if aws --endpoint-url http://localhost:4566 sqs get-queue-url \
+              --queue-name wager-transactions.fifo >/dev/null 2>&1 \
+              && aws --endpoint-url http://localhost:4566 sqs get-queue-url \
+                --queue-name wager-transactions-dlq.fifo >/dev/null 2>&1 \
+              && aws --endpoint-url http://localhost:4566 sqs get-queue-url \
+                --queue-name wager-events.fifo >/dev/null 2>&1; then
+              echo "LocalStack queues are ready"
+              exit 0
+            fi
+
+            echo "Waiting for LocalStack queues (attempt ${attempt}/60)"
+            sleep 2
+          done
+
+          docker compose logs --no-color localstack
+          exit 1
       - run: bun run db:migrate
       - run: RUN_INTEGRATION=1 RUN_SQS_REAL=1 bun test test/integration/sqs-localstack.spec.ts
       - run: bun run db:rollback
