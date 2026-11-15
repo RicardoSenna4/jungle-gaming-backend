@@ -24,7 +24,8 @@
     "test:sqs:real": "bun run test:integration:sqs",
     "test:concurrency": "bun run scripts/run-required-tests.ts concurrency",
     "test:recovery": "bun run scripts/run-required-tests.ts recovery",
-    "test:all": "bun run scripts/run-required-tests.ts all"
+    "test:all": "bun run scripts/run-required-tests.ts all",
+    "smoke:compose": "bun run scripts/smoke-compose.ts"
   },
   "dependencies": {
     "@aws-sdk/client-sqs": "^3.750.0",

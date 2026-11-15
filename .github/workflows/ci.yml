@@ -117,6 +117,12 @@ jobs:
 
           bun run db:migrate
           bun run db:migration:check
+      - name: Boot the real application container
+        run: docker compose up -d api
+      - name: Smoke HTTP, SQS, outbox and crash/restart on the real container
+        env:
+          SMOKE_ALLOW_DISRUPTION: '1'
+        run: bun run smoke:compose
       - name: Upload per-suite JUnit XML and logs
         if: always()
         uses: actions/upload-artifact@v4
