@@ -99,7 +99,7 @@ Os resultados, limitações e como reproduzi-los estão em [TESTING.md](docs/TES
 
 ## Cenários de avaliação prioritários
 
-1. Wallet 100.00 + duas BETs concorrentes de 80.00: uma PROCESSSED, uma REJECTED, saldo 20.00, um débito.
+1. Wallet 100.00 + duas BETs concorrentes de 80.00: uma PROCESSED, uma REJECTED, saldo 20.00, um débito.
 2. 50 reenvios simultâneos idênticos: uma única movimentação e 49 replays.
 3. Três processos independentes sobre uma wallet e wallets diferentes em paralelo.
 4. REFUND/ROLLBACK concorrentes, fora de ordem e com saldo insuficiente.

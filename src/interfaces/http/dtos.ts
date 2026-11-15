@@ -38,8 +38,7 @@ export class SubmitWagerRequestDto {
   @IsNotEmpty()
   playerId!: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID('all')
   walletId!: string;
 
   @IsString()
