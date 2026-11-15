@@ -1,4 +1,5 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { EnsureRequestContext } from '@mikro-orm/core';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { WagerStatus } from '../../domain/wager-transaction';
 import { WagerProcessingService } from '../../application/wager-processing.service';
@@ -13,7 +14,9 @@ export interface PendingReferenceRunResult {
 
 @Injectable()
 export class PendingReferenceWorker implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(PendingReferenceWorker.name);
   private timer?: ReturnType<typeof setInterval>;
+  private inFlight?: Promise<PendingReferenceRunResult>;
   private running = false;
   private readonly intervalMs = Number(process.env.PENDING_REFERENCE_INTERVAL_MS ?? 1_000);
 
@@ -26,13 +29,25 @@ export class PendingReferenceWorker implements OnModuleInit, OnModuleDestroy {
     if (process.env.ENABLE_PENDING_REFERENCE_WORKER !== 'false') this.start();
   }
 
-  onModuleDestroy(): void {
+  async onModuleDestroy(): Promise<void> {
     this.stop();
+    await this.inFlight;
   }
 
   start(): void {
     if (this.timer) return;
-    this.timer = setInterval(() => void this.runOnce(), this.intervalMs);
+    this.timer = setInterval(() => {
+      const task = this.runOnce();
+      this.inFlight = task;
+      void task.catch((error: unknown) => {
+        this.logger.error(JSON.stringify({
+          event: 'pending_reference_tick_failed',
+          errorName: error instanceof Error ? error.name : 'UnknownError',
+        }));
+      }).finally(() => {
+        if (this.inFlight === task) this.inFlight = undefined;
+      });
+    }, this.intervalMs);
   }
 
   stop(): void {
@@ -40,6 +55,7 @@ export class PendingReferenceWorker implements OnModuleInit, OnModuleDestroy {
     this.timer = undefined;
   }
 
+  @EnsureRequestContext((self: PendingReferenceWorker) => self.em)
   async runOnce(now = new Date()): Promise<PendingReferenceRunResult> {
     if (this.running) return { inspected: 0, reprocessed: 0, expired: 0, failed: 0 };
     this.running = true;

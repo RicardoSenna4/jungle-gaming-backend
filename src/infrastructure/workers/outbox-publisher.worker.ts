@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/postgresql';
+import { EnsureRequestContext } from '@mikro-orm/core';
 import { randomUUID } from 'node:crypto';
 import { MetricsService } from '../telemetry/metrics.service';
 import { SqsInfrastructureClient } from './sqs-infrastructure.client';
@@ -55,6 +56,7 @@ export class OutboxPublisherWorker implements OnModuleInit, OnModuleDestroy {
     this.loop = undefined;
   }
 
+  @EnsureRequestContext((self: OutboxPublisherWorker) => self.em)
   async runOnce(): Promise<OutboxRunResult> {
     if (this.running) return { claimed: 0, published: 0, failed: 0 };
     this.running = true;

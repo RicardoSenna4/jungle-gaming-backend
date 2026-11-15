@@ -65,7 +65,7 @@ export class AppController {
           }),
         );
         if (result.status === 'PENDING_REFERENCE') response.status(HttpStatus.ACCEPTED);
-        if (result.status === 'REJECTED' && !result.idempotentReplay) {
+        if (result.status === 'REJECTED') {
           throw new UnprocessableEntityException(result);
         }
         return result;

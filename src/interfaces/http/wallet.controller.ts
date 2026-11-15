@@ -9,7 +9,9 @@ import {
   Param,
   Post,
   Query,
+  ParseUUIDPipe,
 } from '@nestjs/common';
+import { MetricsService } from '../../infrastructure/telemetry/metrics.service';
 import { WalletService } from '../../application/wallets/wallet-service';
 import { CreateWalletRequestDto } from './dtos';
 
@@ -17,7 +19,7 @@ import { CreateWalletRequestDto } from './dtos';
 export class WalletController {
   private readonly logger = new Logger(WalletController.name);
 
-  constructor(private readonly wallets: WalletService) {}
+  constructor(private readonly wallets: WalletService, private readonly metrics: MetricsService) {}
 
   @Post()
   create(@Body() body: CreateWalletRequestDto) {
@@ -25,7 +27,7 @@ export class WalletController {
   }
 
   @Get(':walletId')
-  get(@Param('walletId') walletId: string) {
+  get(@Param('walletId', new ParseUUIDPipe({ version: 'all' })) walletId: string) {
     return this.wallets.getWallet(walletId);
   }
 
@@ -46,7 +48,9 @@ export class WalletController {
   @HttpCode(HttpStatus.OK)
   async reconcile(@Param('walletId') walletId: string) {
     const result = await this.wallets.reconcile(walletId);
+    this.metrics.increment('wallet_reconciliations_total', { consistent: String(result.consistent) });
     if (!result.consistent) {
+      this.metrics.increment('wallet_reconciliation_mismatches_total');
       this.logger.warn(
         JSON.stringify({
           event: 'wallet_reconciliation_mismatch',

@@ -63,7 +63,10 @@ export function decodeLedgerCursor(value: string): LedgerCursor {
     const parsed = JSON.parse(
       Buffer.from(value, 'base64url').toString('utf8'),
     ) as Partial<LedgerCursor>;
-    if (typeof parsed.createdAt !== 'string' || typeof parsed.id !== 'string') throw new Error();
+    if (typeof parsed.createdAt !== 'string' || typeof parsed.id !== 'string' ||
+      !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}(?:\\d{3})?Z$/.test(parsed.createdAt) ||
+      !Number.isFinite(Date.parse(parsed.createdAt)) ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(parsed.id)) throw new Error();
     return { createdAt: parsed.createdAt, id: parsed.id };
   } catch {
     throw new BadRequestException('INVALID_LEDGER_CURSOR');
@@ -194,7 +197,8 @@ export class WalletRepository {
     params.push(limit + 1);
     const rows = await this.em.getConnection().execute<LedgerRow[]>(
       `select id, wallet_id, transaction_id, direction, amount::text, currency,
-              balance_before::text, balance_after::text, created_at
+              balance_before::text, balance_after::text, created_at,
+              to_char(created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as cursor_created_at
          from wallet_ledger_entries
         where wallet_id = ?${cursorClause}
         order by created_at desc, id desc
@@ -216,7 +220,7 @@ export class WalletRepository {
       })),
       nextCursor: hasNext
         ? encodeLedgerCursor({
-            createdAt: new Date(pageRows[pageRows.length - 1].created_at).toISOString(),
+            createdAt: pageRows[pageRows.length - 1].cursor_created_at,
             id: pageRows[pageRows.length - 1].id,
           })
         : undefined,
@@ -246,7 +250,11 @@ export class WalletRepository {
     const row = rows[0];
     if (!row) throw new NotFoundException('WALLET_NOT_FOUND');
     const stored = Money.from({ amount: row.stored_balance, currency: row.currency });
-    const calculated = Money.from({ amount: row.calculated_balance, currency: row.currency });
+    // A corrupt ledger can produce a negative reconstructed balance: report
+    // this discrepancy rather than raising an unhelpful 500 from Money.from.
+    const calculated = row.calculated_balance.startsWith('-')
+      ? Money.from({ amount: row.calculated_balance.slice(1), currency: row.currency }).negate()
+      : Money.from({ amount: row.calculated_balance, currency: row.currency });
     const difference = stored.subtract(calculated);
     return {
       walletId: row.wallet_id,
@@ -273,6 +281,7 @@ interface LedgerRow {
   balance_before: string;
   balance_after: string;
   created_at: string | Date;
+  cursor_created_at: string;
 }
 
 interface ReconciliationRow {

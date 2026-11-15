@@ -1,6 +1,9 @@
 import Decimal from 'decimal.js';
 import { CurrencyMismatchError, InvalidMoneyError } from './errors';
 
+// Higher than NUMERIC(20,2) to avoid rounding before PostgreSQL overflow checks.
+const ExactDecimal = Decimal.clone({ precision: 40 });
+
 export interface MoneyProps {
   amount: string;
   currency: string;
@@ -14,7 +17,7 @@ export class Money {
     if (typeof props.amount !== 'string' || !/^(0|[1-9]\d*)\.\d{2}$/.test(props.amount))
       throw new InvalidMoneyError();
     if (!/^[A-Z]{3}$/.test(props.currency)) throw new InvalidMoneyError('Invalid currency');
-    return new Money(new Decimal(props.amount), props.currency);
+    return new Money(new ExactDecimal(props.amount), props.currency);
   }
   static rehydrate(props: MoneyProps): Money {
     return Money.from(props);

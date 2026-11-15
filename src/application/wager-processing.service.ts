@@ -1,5 +1,5 @@
 import { Injectable, Optional } from '@nestjs/common';
-import { LockMode } from '@mikro-orm/core';
+import { EnsureRequestContext, LockMode } from '@mikro-orm/core';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { randomUUID } from 'node:crypto';
 import { Money } from '../domain/money';
@@ -144,6 +144,7 @@ export class WagerProcessingService {
     };
   }
 
+  @EnsureRequestContext((self: WagerProcessingService) => self.em)
   async process(
     idempotencyKey: string,
     input: SubmitInput,
@@ -192,6 +193,31 @@ export class WagerProcessingService {
         if (external) throw new FinancialProcessingError('EXTERNAL_TRANSACTION_EXISTS', 409);
 
         const wallet = await this.lockWallet(tx, input, money);
+        // A second read AFTER obtaining the wallet lock closes the cross-process
+        // check-then-insert race: all operations for a wallet now observe committed
+        // transactions from predecessors before attempting an insert.
+        const afterLock = await transactionRepository.findOne({
+          providerId: input.providerId,
+          idempotencyKey,
+        }, { refresh: true });
+        if (afterLock) {
+          if (afterLock.payloadHash !== payloadHash) {
+            throw new FinancialProcessingError('IDEMPOTENCY_PAYLOAD_CONFLICT', 409);
+          }
+          if (afterLock.status === WagerStatus.PENDING_REFERENCE &&
+            (afterLock.kind === WagerKind.REFUND || afterLock.kind === WagerKind.ROLLBACK)) {
+            return this.processPendingInTransaction(tx, afterLock, input, money, consumerContext);
+          }
+          this.metrics?.increment('wager_idempotent_replays_total');
+          return this.finishInbox(tx, consumerContext, {
+            ...this.readSnapshot(afterLock.responseSnapshot), idempotentReplay: true,
+          });
+        }
+        const externalAfterLock = await transactionRepository.findOne({
+          providerId: input.providerId,
+          externalTransactionId: input.externalTransactionId,
+        }, { refresh: true });
+        if (externalAfterLock) throw new FinancialProcessingError('EXTERNAL_TRANSACTION_EXISTS', 409);
         if (input.kind === WagerKind.REFUND || input.kind === WagerKind.ROLLBACK) {
           const reference = await transactionRepository.findOne({
             providerId: input.providerId,
@@ -263,6 +289,7 @@ export class WagerProcessingService {
     }
   }
 
+  @EnsureRequestContext((self: WagerProcessingService) => self.em)
   async reprocessPendingReference(
     transactionId: string,
     now = new Date(),
@@ -565,8 +592,19 @@ export class WagerProcessingService {
     money: Money,
     context: ConsumerContext | undefined,
   ): Promise<ProcessingResult> {
-    const walletPromise = this.lockWallet(tx, input, money);
-    return this.resolvePendingAfterWallet(tx, pending, input, money, walletPromise, context);
+    const wallet = await this.lockWallet(tx, input, money);
+    // Read again after wallet serialization, under a row lock, to avoid a second
+    // worker processing a stale PENDING_REFERENCE entity from its Identity Map.
+    const locked = await tx.findOneOrFail(WagerTransactionOrmEntity, { id: pending.id }, {
+      lockMode: LockMode.PESSIMISTIC_WRITE,
+      refresh: true,
+    });
+    if (locked.status !== WagerStatus.PENDING_REFERENCE) {
+      return this.finishInbox(tx, context, {
+        ...this.readSnapshot(locked.responseSnapshot), idempotentReplay: true,
+      });
+    }
+    return this.resolvePendingAfterWallet(tx, locked, input, money, wallet, context);
   }
 
   private async resolvePendingAfterWallet(
@@ -574,10 +612,9 @@ export class WagerProcessingService {
     pending: WagerTransactionOrmEntity,
     input: SubmitInput,
     money: Money,
-    walletPromise: Promise<WalletOrmEntity>,
+    wallet: WalletOrmEntity,
     context: ConsumerContext | undefined,
   ): Promise<ProcessingResult> {
-    const wallet = await walletPromise;
     const now = new Date();
     const reference = await tx.findOne(WagerTransactionOrmEntity, {
       providerId: input.providerId,
@@ -825,14 +862,15 @@ export class WagerProcessingService {
     providerId: string,
     idempotencyKey: string,
   ): Promise<WagerTransactionOrmEntity | null> {
-    this.em.clear();
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      const transaction = await this.em.findOne(WagerTransactionOrmEntity, {
+    // A private fork avoids clearing the caller's request-scoped identity map.
+    const lookupEm = this.em.fork({ clear: true, useContext: false });
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const transaction = await lookupEm.findOne(WagerTransactionOrmEntity, {
         providerId,
         idempotencyKey,
-      });
+      }, { refresh: true });
       if (transaction) return transaction;
-      await this.sleep(10 * (attempt + 1));
+      await this.sleep(20 * (attempt + 1));
     }
     return null;
   }
@@ -849,7 +887,14 @@ export class WagerProcessingService {
   }
 
   private isUniqueViolation(error: unknown): boolean {
-    return typeof error === 'object' && error !== null && 'code' in error && error.code === '23505';
+    let current: unknown = error;
+    for (let depth = 0; depth < 4; depth++) {
+      if (typeof current !== 'object' || current === null) break;
+      const candidate = current as { code?: unknown; sqlState?: unknown; driverException?: unknown; cause?: unknown };
+      if (candidate.code === '23505' || candidate.sqlState === '23505') return true;
+      current = candidate.driverException ?? candidate.cause;
+    }
+    return false;
   }
 
   private isRetryableTransaction(error: unknown): boolean {
