@@ -170,3 +170,29 @@ bun test
 ## Pendências honestas
 
 A única limitação de execução local desta etapa é a ausência de Docker/LocalStack. O código e o teste E2E estão preparados, e o CI foi alterado para executar o cenário real. A prova final de redelivery, DLQ, restart e crash pós-commit/pré-ack deve ser confirmada pelo workflow com containers, sem ser inferida apenas dos testes unitários.
+
+
+## F00 — confirmação do baseline e rastreabilidade — 2026-11-15
+
+Foi confirmado que `CHALLENGE_SPEC.md` é byte a byte idêntico ao README upstream. No SHA-base `688ba474e1bff084a2c72495ba3616444a2c2338`, `bun test` reportou 30 aprovados, 29 ignorados e zero falhas; a execução GitHub Actions `43751276240` terminou verde, mas o job `verify` não executou as integrações PostgreSQL. O job com serviços executou apenas uma spec SQS real. A CI-base aplicou migrations e chamou rollback uma única vez, não demonstrando o rollback completo das quatro migrations.
+
+Evidências e classificação dos achados foram registradas em `docs/EVIDENCE_BASELINE.md`, `docs/AUDIT_FINDINGS.md` e `docs/REQUIREMENTS_TRACEABILITY.md`. Foi criada a branch isolada `fix/challenge-f00-f01`; `main` não foi modificada.
+
+Estado: baseline confirmado; F00 concluída.
+
+## F01 — execução integral dos testes no GitHub Actions — 2026-11-15
+
+O runner `scripts/run-required-tests.ts` / `scripts/test-suite-runner.ts` executa arquivos de teste em série, gera JUnit e logs individuais, e faz o gate falhar com exit code diferente de zero, suite sem testes, falha, erro ou qualquer teste ignorado. Antes das suítes de integração, descobre recursivamente as specs existentes e exige correspondência exata com o registro (sem omissões, caminhos obsoletos ou duplicatas). Foram adicionados scripts explícitos para testes unitários, integração PostgreSQL, SQS real, concorrência, recuperação e execução completa. O workflow agora inicia PostgreSQL e LocalStack em um runner descartável, aguarda as três filas, aplica as migrations, executa todas as specs existentes sem removê-las, verifica migrations pendentes, reverte cada migration em sequência, reaplica a cadeia e publica artefatos de teste.
+
+Validações locais no código F01:
+
+- `bun run format` e `bun run format:check`: aprovados.
+- `bun run typecheck`: aprovado.
+- `bun run lint`: aprovado.
+- `bun run build`: aprovado.
+- `bun run test:unit`: 34 aprovados, 0 falhas, 0 ignorados (98 assertions).
+- Testes de fail-closed: uma spec unitária temporária deliberadamente falha e uma spec de integração temporária não registrada foram criadas e removidas no mesmo comando de prova; o runner rejeitou ambas com exit code não zero, e a de integração foi rejeitada antes de executar qualquer integração. Não foi removido ou desativado nenhum teste existente.
+- Integrações PostgreSQL/LocalStack locais: BLOQUEADAS / não executadas, pois `docker` não está instalado neste sandbox. Isso não é registrado como skip nem aprovação.
+- GitHub Actions da branch F00/F01: PENDENTE até publicação e execução do workflow.
+
+O README foi alinhado aos novos comandos e ao requisito de serviços. F02 e fases posteriores não foram iniciadas, respeitando o limite solicitado.

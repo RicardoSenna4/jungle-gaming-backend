@@ -48,20 +48,25 @@ O consumer e o publisher são opt-in. O worker de referências pendentes inicia 
 
 ## Qualidade e testes
 
+`test:unit` não exige serviços externos. Os demais testes de integração precisam do PostgreSQL e/ou LocalStack iniciados; o executor configura as flags de integração, grava JUnit/logs em `.test-results/` e falha caso qualquer teste obrigatório seja pulado ou nenhuma execução seja reportada. O inventário de specs é descoberto recursivamente e comparado ao registro explícito; arquivos ausentes, não registrados ou duplicados bloqueiam o gate.
+
 ```bash
 bun run typecheck
 bun run lint
 bun run format:check
 bun run build
 bun run test:unit
-bun run test:integration
-bun run test:sqs:real
+bun run test:integration:postgres
+bun run test:integration:sqs
+bun run test:concurrency
+bun run test:recovery
+bun run test:all
 bun run db:migration:check
 ```
 
-Para executar o E2E real de SQS, use `docker compose up -d postgres localstack`, aplique as migrations e execute `bun run test:sqs:real`. O workflow do GitHub Actions executa esse comando dentro do job de integração depois de subir os serviços.
+`bun run test` é um alias de `bun run test:all`. O workflow do GitHub Actions inicia PostgreSQL e LocalStack no runner descartável, aguarda as três filas, aplica migrations, executa a suíte completa serialmente entre arquivos, reverte cada migration e reaplica a cadeia. O paralelismo dentro dos cenários de concorrência continua ativo. Os resultados JUnit e logs são publicados como artefato do workflow.
 
-Nesta revisão foram adicionados testes HTTP reais contra PostgreSQL, testes de eventos de OPENING e teste de recuperação do publisher após falha equivalente a crash entre envio e marcação publicada. No sandbox atual, os testes novos de wallet/OPENING, outbox e HTTP passaram; Docker/LocalStack não estão instalados localmente, portanto o gate SQS real permanece dependente do CI e não é declarado como aprovado localmente.
+No snapshot-base `688ba47`, a execução Actions do comando genérico reportou 30 pass e 29 skip; por isso, os relatos locais anteriores não são tratados como aprovação da suíte no CI desse SHA. Nesta branch, a execução completa do workflow ainda deve ser confirmada antes de declarar o gate aprovado. O sandbox de desenvolvimento não tem Docker (`docker: command not found`), então PostgreSQL/LocalStack reais serão validados pelo runner GitHub, não por mocks locais.
 
 ## Migrations
 
