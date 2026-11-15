@@ -249,7 +249,7 @@ Detalhes dos tipos de transação e retornos estão em [API.md](API.md).
 | Docker não encontrado | Instale/abra o Docker Desktop e reinicie o terminal |
 | API indisponível em `localhost:3000` | Rode `docker compose ps` e `docker compose logs --tail=100 api` |
 | Portas 3000, 5432 ou 4566 ocupadas | Encerre o programa que usa a porta e reinicie os serviços |
-| `health/live` funciona, `health/ready` retorna 503 | Confira ``docker compose logs postgres`` e ``docker compose logs localstack`` |
+| `health/live` funciona, `health/ready` retorna 503 | Confira `docker compose logs postgres` e `docker compose logs localstack` |
 | `WALLET_ALREADY_EXISTS` | Crie outro `playerId`; os exemplos geram um valor novo |
 | `IDEMPOTENCY_PAYLOAD_CONFLICT` | Use uma chave nova para um payload diferente |
 | Erro 422 por saldo insuficiente | Consulte o saldo de sua wallet antes de apostar |
