@@ -152,41 +152,72 @@ describeSqs('LocalStack SQS FIFO end-to-end', () => {
     expect(afterAck.Messages ?? []).toHaveLength(0);
   });
   it('survives a post-commit, pre-ACK redelivery over real SQS without another debit', async () => {
-    const wallet = await new WalletRepository(em).create('redelivery-player',
-      Money.from({ amount: '20.00', currency: 'BRL' }));
+    const wallet = await new WalletRepository(em).create(
+      'redelivery-player',
+      Money.from({ amount: '20.00', currency: 'BRL' }),
+    );
     const messageId = 'redelivery-' + Date.now();
     const body = {
-      messageId, type: 'WagerTransactionRequested', occurredAt: new Date().toISOString(),
-      data: { providerId:'redelivery-provider', externalTransactionId:messageId,
-        idempotencyKey:messageId, playerId:'redelivery-player', walletId:wallet.id,
-        roundId:'round',gameId:'game',kind:'BET',money:{amount:'5.00',currency:'BRL'}}
+      messageId,
+      type: 'WagerTransactionRequested',
+      occurredAt: new Date().toISOString(),
+      data: {
+        providerId: 'redelivery-provider',
+        externalTransactionId: messageId,
+        idempotencyKey: messageId,
+        playerId: 'redelivery-player',
+        walletId: wallet.id,
+        roundId: 'round',
+        gameId: 'game',
+        kind: 'BET',
+        money: { amount: '5.00', currency: 'BRL' },
+      },
     };
-    await sqs.send(new SendMessageCommand({
-      QueueUrl:queueUrl, MessageBody:JSON.stringify(body),
-      MessageGroupId:'redelivery-player', MessageDeduplicationId:messageId,
-    }));
-    const received = await sqs.send(new ReceiveMessageCommand({QueueUrl:queueUrl,WaitTimeSeconds:2,VisibilityTimeout:15}));
+    await sqs.send(
+      new SendMessageCommand({
+        QueueUrl: queueUrl,
+        MessageBody: JSON.stringify(body),
+        MessageGroupId: 'redelivery-player',
+        MessageDeduplicationId: messageId,
+      }),
+    );
+    const received = await sqs.send(
+      new ReceiveMessageCommand({ QueueUrl: queueUrl, WaitTimeSeconds: 2, VisibilityTimeout: 15 }),
+    );
     const message = received.Messages?.[0];
     expect(message?.ReceiptHandle).toBeTruthy();
     const consumer = new WagerTransactionConsumer(new WagerProcessingService(em));
     try {
       const committed = await consumer.handleMessage(message!);
-      expect(committed).toMatchObject({ acknowledged:true, status:'PROCESSED' });
+      expect(committed).toMatchObject({ acknowledged: true, status: 'PROCESSED' });
       // Simulate abrupt death after commit and before DeleteMessage.
-      await sqs.send(new ChangeMessageVisibilityCommand({
-        QueueUrl:queueUrl, ReceiptHandle:message!.ReceiptHandle,VisibilityTimeout:0,
-      }));
-      const retry = await sqs.send(new ReceiveMessageCommand({QueueUrl:queueUrl,WaitTimeSeconds:2}));
+      await sqs.send(
+        new ChangeMessageVisibilityCommand({
+          QueueUrl: queueUrl,
+          ReceiptHandle: message!.ReceiptHandle,
+          VisibilityTimeout: 0,
+        }),
+      );
+      const retry = await sqs.send(
+        new ReceiveMessageCommand({ QueueUrl: queueUrl, WaitTimeSeconds: 2 }),
+      );
       const redelivered = retry.Messages?.[0];
       expect(redelivered?.ReceiptHandle).toBeTruthy();
-      expect(await consumer.handleMessage(redelivered!)).toMatchObject({acknowledged:true});
-      await sqs.send(new DeleteMessageCommand({
-        QueueUrl:queueUrl,ReceiptHandle:redelivered!.ReceiptHandle,
-      }));
-      expect(await em.count(InboxOrmEntity,{messageId})).toBe(1);
-      expect(await em.count(WagerTransactionOrmEntity,{externalTransactionId:messageId})).toBe(1);
-      expect(await em.count(LedgerOrmEntity,{walletId:wallet.id,direction:'DEBIT'})).toBe(1);
-    } finally { await consumer.onModuleDestroy(); }
+      expect(await consumer.handleMessage(redelivered!)).toMatchObject({ acknowledged: true });
+      await sqs.send(
+        new DeleteMessageCommand({
+          QueueUrl: queueUrl,
+          ReceiptHandle: redelivered!.ReceiptHandle,
+        }),
+      );
+      expect(await em.count(InboxOrmEntity, { messageId })).toBe(1);
+      expect(await em.count(WagerTransactionOrmEntity, { externalTransactionId: messageId })).toBe(
+        1,
+      );
+      expect(await em.count(LedgerOrmEntity, { walletId: wallet.id, direction: 'DEBIT' })).toBe(1);
+    } finally {
+      await consumer.onModuleDestroy();
+    }
   });
 
   it('redrives malformed messages to the real LocalStack DLQ after retries', async () => {
@@ -196,23 +227,37 @@ describeSqs('LocalStack SQS FIFO end-to-end', () => {
     const dlqUrl = 'http://localhost:4566/000000000000/wager-transactions-dlq.fifo';
     const consumer = new WagerTransactionConsumer(new WagerProcessingService(em));
     try {
-      await sqs.send(new SendMessageCommand({
-        QueueUrl:queueUrl,
-        MessageBody:JSON.stringify({messageId,type:'INVALID',occurredAt:new Date().toISOString()}),
-        MessageGroupId:'poison-group',MessageDeduplicationId:messageId,
-      }));
+      await sqs.send(
+        new SendMessageCommand({
+          QueueUrl: queueUrl,
+          MessageBody: JSON.stringify({
+            messageId,
+            type: 'INVALID',
+            occurredAt: new Date().toISOString(),
+          }),
+          MessageGroupId: 'poison-group',
+          MessageDeduplicationId: messageId,
+        }),
+      );
       consumer.start();
       let arrived = false;
       const deadline = Date.now() + 22_000;
       while (Date.now() < deadline && !arrived) {
-        const received = await sqs.send(new ReceiveMessageCommand({
-          QueueUrl:dlqUrl,WaitTimeSeconds:1,
-        }));
+        const received = await sqs.send(
+          new ReceiveMessageCommand({
+            QueueUrl: dlqUrl,
+            WaitTimeSeconds: 1,
+          }),
+        );
         for (const msg of received.Messages ?? []) {
           if (msg.Body?.includes(messageId)) arrived = true;
-          if (msg.ReceiptHandle) await sqs.send(new DeleteMessageCommand({
-            QueueUrl:dlqUrl,ReceiptHandle:msg.ReceiptHandle,
-          }));
+          if (msg.ReceiptHandle)
+            await sqs.send(
+              new DeleteMessageCommand({
+                QueueUrl: dlqUrl,
+                ReceiptHandle: msg.ReceiptHandle,
+              }),
+            );
         }
       }
       expect(arrived).toBe(true);
@@ -223,5 +268,4 @@ describeSqs('LocalStack SQS FIFO end-to-end', () => {
       else process.env.SQS_VISIBILITY_TIMEOUT = previous;
     }
   });
-
 });

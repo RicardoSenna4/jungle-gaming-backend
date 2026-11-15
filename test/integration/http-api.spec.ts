@@ -182,42 +182,89 @@ describeIntegration('HTTP API contracts', () => {
     expect(metrics.status).toBe(200);
   });
   it('returns 400/409/202 for malformed cursor, hash conflict and pending references', async () => {
-    const created = await request('/wallets', { method:'POST',
-      headers:{'content-type':'application/json'},
-      body:JSON.stringify({playerId:'status-player',initialBalance:{amount:'25.00',currency:'BRL'}})
+    const created = await request('/wallets', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        playerId: 'status-player',
+        initialBalance: { amount: '25.00', currency: 'BRL' },
+      }),
     });
     expect(created.status).toBe(201);
     const walletId = created.body.id as string;
     expect((await request('/wallets/not-a-uuid')).status).toBe(400);
     expect((await request(`/wallets/${walletId}/ledger?cursor=invalid-cursor`)).status).toBe(400);
-    const input = { providerId:'status-provider', externalTransactionId:'status-bet',
-      playerId:'status-player',walletId,roundId:'round-1',gameId:'game-1',kind:'BET',
-      money:{amount:'5.00',currency:'BRL'} };
-    expect((await request('/wagering/transactions',{method:'POST',headers:{
-      'content-type':'application/json','idempotency-key':'status-key'
-    },body:JSON.stringify(input)})).status).toBe(200);
-    expect((await request('/wagering/transactions',{method:'POST',headers:{
-      'content-type':'application/json','idempotency-key':'status-key'
-    },body:JSON.stringify({...input,money:{amount:'6.00',currency:'BRL'}})})).status).toBe(409);
-    const pending = await request('/wagering/transactions',{method:'POST',headers:{
-      'content-type':'application/json','idempotency-key':'status-pending'
-    },body:JSON.stringify({...input,kind:'REFUND',externalTransactionId:'pending-refund',
-      referenceExternalTransactionId:'missing-bet'})});
+    const input = {
+      providerId: 'status-provider',
+      externalTransactionId: 'status-bet',
+      playerId: 'status-player',
+      walletId,
+      roundId: 'round-1',
+      gameId: 'game-1',
+      kind: 'BET',
+      money: { amount: '5.00', currency: 'BRL' },
+    };
+    expect(
+      (
+        await request('/wagering/transactions', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'idempotency-key': 'status-key',
+          },
+          body: JSON.stringify(input),
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await request('/wagering/transactions', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'idempotency-key': 'status-key',
+          },
+          body: JSON.stringify({ ...input, money: { amount: '6.00', currency: 'BRL' } }),
+        })
+      ).status,
+    ).toBe(409);
+    const pending = await request('/wagering/transactions', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'idempotency-key': 'status-pending',
+      },
+      body: JSON.stringify({
+        ...input,
+        kind: 'REFUND',
+        externalTransactionId: 'pending-refund',
+        referenceExternalTransactionId: 'missing-bet',
+      }),
+    });
     expect(pending.status).toBe(202);
-    expect(pending.body).toMatchObject({status:'PENDING_REFERENCE'});
+    expect(pending.body).toMatchObject({ status: 'PENDING_REFERENCE' });
   });
 
   it('flags reconciliation divergence in both HTTP response and metrics', async () => {
-    const wallet = await request('/wallets',{method:'POST',
-      headers:{'content-type':'application/json'},
-      body:JSON.stringify({playerId:'metric-player', initialBalance:{amount:'20.00',currency:'BRL'}})
+    const wallet = await request('/wallets', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        playerId: 'metric-player',
+        initialBalance: { amount: '20.00', currency: 'BRL' },
+      }),
     });
     expect(wallet.status).toBe(201);
     const em = orm.em.fork();
-    await em.getConnection().execute('update wallets set balance = ? where id = ?', ['19.00',wallet.body.id]);
-    const result = await request(`/wallets/${wallet.body.id}/reconciliation`,{method:'POST'});
+    await em
+      .getConnection()
+      .execute('update wallets set balance = ? where id = ?', ['19.00', wallet.body.id]);
+    const result = await request(`/wallets/${wallet.body.id}/reconciliation`, { method: 'POST' });
     expect(result.status).toBe(200);
-    expect(result.body).toMatchObject({consistent:false,difference:{amount:'-1.00',currency:'BRL'}});
+    expect(result.body).toMatchObject({
+      consistent: false,
+      difference: { amount: '-1.00', currency: 'BRL' },
+    });
     const metrics = await request('/metrics');
     expect(metrics.status).toBe(200);
     expect(String(metrics.body)).toContain('wallet_reconciliation_mismatches_total');
@@ -230,11 +277,10 @@ describeIntegration('HTTP API contracts', () => {
       expect((await request('/health/live')).status).toBe(200);
       const ready = await request('/health/ready');
       expect(ready.status).toBe(503);
-      expect(ready.body).toHaveProperty('status','error');
+      expect(ready.body).toHaveProperty('status', 'error');
     } finally {
       if (previous === undefined) delete process.env.SQS_QUEUE_URL;
       else process.env.SQS_QUEUE_URL = previous;
     }
   });
-
 });

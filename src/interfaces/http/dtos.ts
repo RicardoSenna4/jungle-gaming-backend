@@ -1,5 +1,13 @@
 import { Type } from 'class-transformer';
-import { IsUUID, IsIn, IsNotEmpty, IsOptional, IsString, Matches, ValidateNested } from 'class-validator';
+import {
+  IsUUID,
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  ValidateNested,
+} from 'class-validator';
 import { WagerKind } from '../../domain/wager-transaction';
 
 const DECIMAL_AMOUNT = /^\d+\.\d{2}$/;
