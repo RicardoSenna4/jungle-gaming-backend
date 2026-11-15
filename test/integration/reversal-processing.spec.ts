@@ -203,20 +203,36 @@ describeIntegration('refund, rollback and out-of-order references', () => {
   });
 
   it('serializes concurrent REFUND and ROLLBACK of the same BET without double credit', async () => {
-    const wallet = await walletRepository.create('mixed-race',
-      Money.from({ amount: '100.00', currency: 'BRL' }));
-    await service.process('mixed-bet-key', operation(wallet.id, 'mixed-bet', WagerKind.BET,
-      '20.00', 'mixed-race'));
-    const ref = operation(wallet.id, 'mixed-refund', WagerKind.REFUND,
-      '20.00', 'mixed-race', 'mixed-bet');
-    const rollback = operation(wallet.id, 'mixed-rollback', WagerKind.ROLLBACK,
-      '20.00', 'mixed-race', 'mixed-bet');
+    const wallet = await walletRepository.create(
+      'mixed-race',
+      Money.from({ amount: '100.00', currency: 'BRL' }),
+    );
+    await service.process(
+      'mixed-bet-key',
+      operation(wallet.id, 'mixed-bet', WagerKind.BET, '20.00', 'mixed-race'),
+    );
+    const ref = operation(
+      wallet.id,
+      'mixed-refund',
+      WagerKind.REFUND,
+      '20.00',
+      'mixed-race',
+      'mixed-bet',
+    );
+    const rollback = operation(
+      wallet.id,
+      'mixed-rollback',
+      WagerKind.ROLLBACK,
+      '20.00',
+      'mixed-race',
+      'mixed-bet',
+    );
     const results = await Promise.all([
       new WagerProcessingService(orm.em.fork()).process('mixed-refund-key', ref),
       new WagerProcessingService(orm.em.fork()).process('mixed-rollback-key', rollback),
     ]);
-    expect(results.filter(x => x.status === 'PROCESSED')).toHaveLength(1);
-    expect(results.filter(x => x.status === 'REJECTED')).toHaveLength(1);
+    expect(results.filter((x) => x.status === 'PROCESSED')).toHaveLength(1);
+    expect(results.filter((x) => x.status === 'REJECTED')).toHaveLength(1);
     em.clear();
     expect(await em.count(LedgerOrmEntity, { walletId: wallet.id, direction: 'CREDIT' })).toBe(2);
   });

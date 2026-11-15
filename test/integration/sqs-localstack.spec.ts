@@ -1,4 +1,9 @@
-import { SQSClient, SendMessageCommand, ReceiveMessageCommand, DeleteMessageCommand } from '@aws-sdk/client-sqs';
+import {
+  SQSClient,
+  SendMessageCommand,
+  ReceiveMessageCommand,
+  DeleteMessageCommand,
+} from '@aws-sdk/client-sqs';
 import { MikroORM } from '@mikro-orm/postgresql';
 import mikroOrmConfig from '../../src/infrastructure/database/mikro-orm.config';
 import { Money } from '../../src/domain/money';
@@ -49,8 +54,10 @@ describeSqs('LocalStack SQS FIFO end-to-end', () => {
   });
 
   it('publishes committed outbox events to real SQS and marks them as published', async () => {
-    const wallet = await new WalletRepository(em).create('outbox-real-player',
-      Money.from({ amount: '10.00', currency: 'BRL' }));
+    const wallet = await new WalletRepository(em).create(
+      'outbox-real-player',
+      Money.from({ amount: '10.00', currency: 'BRL' }),
+    );
     const producer = new SqsInfrastructureClient();
     const publisher = new OutboxPublisherWorker(em.fork(), producer, new MetricsService());
     try {
@@ -59,19 +66,27 @@ describeSqs('LocalStack SQS FIFO end-to-end', () => {
       em.clear();
       const rows = await em.find(OutboxOrmEntity, {});
       expect(rows).toHaveLength(2);
-      expect(rows.every(row => !!row.publishedAt)).toBe(true);
+      expect(rows.every((row) => !!row.publishedAt)).toBe(true);
       const eventsQueueUrl = 'http://localhost:4566/000000000000/wager-events.fifo';
-      const received = await sqs.send(new ReceiveMessageCommand({
-        QueueUrl: eventsQueueUrl, WaitTimeSeconds: 1, MaxNumberOfMessages: 10,
-      }));
+      const received = await sqs.send(
+        new ReceiveMessageCommand({
+          QueueUrl: eventsQueueUrl,
+          WaitTimeSeconds: 1,
+          MaxNumberOfMessages: 10,
+        }),
+      );
       expect((received.Messages ?? []).length).toBeGreaterThan(0);
       for (const message of received.Messages ?? []) {
         const payload = JSON.parse(message.Body ?? '{}');
         expect(typeof payload.eventId).toBe('string');
         expect(payload.version).toBe(1);
-        if (message.ReceiptHandle) await sqs.send(new DeleteMessageCommand({
-          QueueUrl: eventsQueueUrl, ReceiptHandle: message.ReceiptHandle,
-        }));
+        if (message.ReceiptHandle)
+          await sqs.send(
+            new DeleteMessageCommand({
+              QueueUrl: eventsQueueUrl,
+              ReceiptHandle: message.ReceiptHandle,
+            }),
+          );
       }
       expect(wallet.version).toBe(1);
     } finally {

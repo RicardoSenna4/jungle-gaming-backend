@@ -721,10 +721,17 @@ export class WagerProcessingService {
     const transactionId = existingTransaction?.id ?? randomUUID();
     const domainTransaction = existingTransaction
       ? WagerTransaction.rehydrate({
-          id: transactionId, providerId: input.providerId,
+          id: transactionId,
+          providerId: input.providerId,
           externalTransactionId: input.externalTransactionId,
-          idempotencyKey, payloadHash, walletId: wallet.id, playerId: input.playerId,
-          roundId: input.roundId, gameId: input.gameId, kind: input.kind, money,
+          idempotencyKey,
+          payloadHash,
+          walletId: wallet.id,
+          playerId: input.playerId,
+          roundId: input.roundId,
+          gameId: input.gameId,
+          kind: input.kind,
+          money,
           referenceExternalTransactionId: input.referenceExternalTransactionId,
           createdAt: existingTransaction.createdAt ?? new Date(),
           status: existingTransaction.status as WagerStatus,
@@ -733,10 +740,17 @@ export class WagerProcessingService {
           processedAt: existingTransaction.processedAt,
         })
       : WagerTransaction.create({
-          id: transactionId, providerId: input.providerId,
+          id: transactionId,
+          providerId: input.providerId,
           externalTransactionId: input.externalTransactionId,
-          idempotencyKey, payloadHash, walletId: wallet.id, playerId: input.playerId,
-          roundId: input.roundId, gameId: input.gameId, kind: input.kind, money,
+          idempotencyKey,
+          payloadHash,
+          walletId: wallet.id,
+          playerId: input.playerId,
+          roundId: input.roundId,
+          gameId: input.gameId,
+          kind: input.kind,
+          money,
           referenceExternalTransactionId: input.referenceExternalTransactionId,
         });
     if (status === WagerStatus.PROCESSED) domainTransaction.markProcessed(referenceTransactionId);
@@ -781,17 +795,26 @@ export class WagerProcessingService {
     await tx.flush();
     if (status === WagerStatus.PROCESSED && direction) {
       const domainWallet = Wallet.rehydrate({
-        id: wallet.id, playerId: wallet.playerId, currency: wallet.currency,
-        balance: before, version: wallet.version,
-        createdAt: wallet.createdAt ?? new Date(), updatedAt: wallet.updatedAt ?? new Date(),
+        id: wallet.id,
+        playerId: wallet.playerId,
+        currency: wallet.currency,
+        balance: before,
+        version: wallet.version,
+        createdAt: wallet.createdAt ?? new Date(),
+        updatedAt: wallet.updatedAt ?? new Date(),
       });
       if (direction === LedgerDirection.DEBIT) domainWallet.debit(money);
       else domainWallet.credit(money);
       if (!domainWallet.balance.equals(after)) throw new Error('WALLET_LEDGER_DIVERGENCE');
       const ledgerId = randomUUID();
       WalletLedgerEntry.create({
-        id: ledgerId, walletId: wallet.id, transactionId,
-        direction, money, balanceBefore: before, balanceAfter: domainWallet.balance,
+        id: ledgerId,
+        walletId: wallet.id,
+        transactionId,
+        direction,
+        money,
+        balanceBefore: before,
+        balanceAfter: domainWallet.balance,
       });
       wallet.balance = domainWallet.balance.toString();
       wallet.version = domainWallet.version;
