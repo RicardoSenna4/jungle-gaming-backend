@@ -13,6 +13,7 @@ aguarde filas e execute `bun run db:migrate` antes das integrações.
 | `bun run test:concurrency` | múltiplos processos e wallet compartilhada |
 | `bun run test:recovery` | outbox, reversões, inbox e SQS |
 | `bun run test:all` | todos os cenários obrigatórios, sequencial por spec |
+| `SMOKE_ALLOW_DISRUPTION=1 bun run smoke:compose` | HTTP + SQS + outbox + reinício SIGKILL/SIGTERM com API em Docker Compose isolado |
 | `bun run db:migration:check` | migrations não aplicadas |
 | `bun run typecheck && bun run lint && bun run format:check && bun run build` | qualidade |
 
@@ -43,6 +44,9 @@ a partir de outro ou de relatórios históricos.
 
 ### CI
 
+Na execução [#43763470242](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43763470242), correspondente ao commit `09acbd3be159acd482cd88e9814a105f8e29a45d`, passaram 80 testes sem skips (12 alvos) e o smoke real da aplicação. O script `smoke:compose` **derruba e reinicia o serviço `api`** e consome mensagens da fila de eventos local; nunca execute em sistemas compartilhados ou em produção. O job primeiro sobe os serviços, aplica migrations e roda os testes; em seguida inicia a API e verifica operações HTTP/SQS e persistência após SIGKILL/SIGTERM.
+
+
 Workflow: [ci.yml](../.github/workflows/ci.yml). Executa em runner descartável,
 sobe PostgreSQL/LocalStack, aplica migrations e executa o runner sem skips.
 Reverte a cadeia completa no banco isolado e reaplica migrations.
@@ -54,5 +58,4 @@ A aprovação vale somente para o SHA de cada execução.
 O E2E com LocalStack não comprova automaticamente idêntico comportamento no
 SQS gerenciado em AWS; duplicatas continuam possíveis fora da janela FIFO.
 A presença de métodos `runOnce` não substitui prova de timer/agendamento real.
-Relatórios de simulação de crash precisam ser diferenciados de encerramento de
-processo real. Ver [FAILURE_RECOVERY](FAILURE_RECOVERY.md).
+A execução de SIGKILL/SIGTERM da API já foi provada no CI, mas injeção de falha entre send/mark da outbox e entre commit/ACK do consumer continuam casos distintos, que não podem ser inferidos apenas da reinicialização. Ver [FAILURE_RECOVERY](FAILURE_RECOVERY.md).

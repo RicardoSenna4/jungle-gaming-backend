@@ -72,6 +72,14 @@ curl -X POST http://localhost:3000/wagering/transactions \
 
 Crie a wallet primeiro via `POST /wallets` e substitua os marcadores pelos dados retornados e pelo `playerId` escolhido.
 
+## Evidência reproduzível do commit integrado
+
+No commit [`09acbd3`](https://github.com/RicardoSenna4/jungle-gaming-backend/commit/09acbd3be159acd482cd88e9814a105f8e29a45d), o [CI da `main`](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43763470242) aprovou **80 testes, zero falhas, zero erros e zero testes ignorados**, além de executar o fluxo completo no container Docker Compose. O smoke test criou uma wallet, processou BET via HTTP e WIN via SQS, conferiu ledger/reconciliação/outbox e verificou persistência após **SIGKILL** e **SIGTERM** da API seguidos de reinicialização.
+
+Esses encerramentos foram feitos no serviço `api` de um ambiente descartável de CI. **Não constituem prova de todos os instantes de falha de consumer/outbox em trânsito**, nem de compatibilidade com AWS real. Os experimentos adicionais permanecem no checklist de homologação.
+
+O script `scripts/smoke-compose.ts` é **destrutivo para a instância local** e exige `SMOKE_ALLOW_DISRUPTION=1`; não execute em ambiente compartilhado ou de produção.
+
 ## Qualidade e testes
 
 ```bash
@@ -86,6 +94,8 @@ bun run test:concurrency
 bun run test:recovery
 bun run test:all
 bun run db:migration:check
+# Após docker compose up -d api, em ambiente isolado:
+SMOKE_ALLOW_DISRUPTION=1 bun run smoke:compose
 ```
 
 Para as integrações, inicie PostgreSQL e LocalStack antes dos testes e aplique as migrations.

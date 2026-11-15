@@ -1,6 +1,6 @@
 # Checklist de aceite da entrega
 
-**Código avaliado:** `3cdb0eb`, [Actions #43760715469](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43760715469), **80 PASS/0 FAIL/0 SKIP**. Todos os estados a seguir distinguem prova automatizada de aprovação humana.
+**Código avaliado:** [`09acbd3`](https://github.com/RicardoSenna4/jungle-gaming-backend/commit/09acbd3be159acd482cd88e9814a105f8e29a45d), [CI `main` #43763470242](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43763470242), **80 PASS/0 FAIL/0 SKIP** e smoke em container aprovado com SIGKILL/SIGTERM. Todos os estados a seguir distinguem prova automatizada de aprovação humana.
 
 | Gate | Requisito | Estado | Evidência |
 |---|---|---|---|
@@ -13,13 +13,13 @@
 | G07 | 50 operações idênticas | PASS | concurrency cenário B |
 | G08 | BET 80+80 / saldo 100 | PASS | concurrency cenário A |
 | G09 | ≥3 processos e wallets distintas | PASS | concurrency cenários C/D |
-| G10 | Worker pending agendado | PASS no CI | pending-worker (sem ensaio de kill real) |
-| G11 | Inbox, ACK, redelivery, DLQ, backoff | PASS parcial | sqs-consumer/sqs-localstack; SIGTERM real pendente |
-| G12 | Outbox, claims, retries, publicação pós-commit | PASS parcial | outbox-publisher/sqs-localstack; SIGKILL real pendente |
+| G10 | Worker pending agendado | PASS no CI | pending-worker; smoke reinicia API, mas não interrompe uma referência durante processamento |
+| G11 | Inbox, ACK, redelivery, DLQ, backoff | PASS parcial | sqs-localstack e smoke com SIGTERM; falta induzir parada com mensagem em voo |
+| G12 | Outbox, claims, retries, publicação pós-commit | PASS parcial | Outbox SQS real e smoke com SIGKILL; falta interrupção forçada entre SendMessage e marca SQL |
 | G13 | Eventos concretos versionados | PASS | events unit + outbox/LocalStack |
 | G14 | HTTP, cursor, status, extensão auth | PASS | http-api, ledger-pagination, provider-identity.guard |
 | G15 | JSON logs, métricas, health, reconciliação | PASS | json-logger, metrics, health, http-api |
-| G16 | CI do código executa todos os testes sem skips | PASS | Actions #43760715469 |
+| G16 | CI do código executa todos os testes sem skips e smoke container | PASS | [Actions #43763470242](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43763470242) |
 | G17 | README, arquitetura e evidências consistentes | PASS documentação | README, ARCHITECTURE, docs |
 | G18 | Sem segredos reais, review e instalação limpa | PENDENTE HOMOLOGAÇÃO | Conferir histórico + smoke local |
 | G19 | Acesso do avaliador ao repositório privado | PENDENTE HUMANO | Confirmar permissões |
@@ -27,7 +27,7 @@
 
 ## Para você executar antes de enviar
 
-- [ ] Clonar do zero na sua máquina, executar `docker compose up --build -d` e verificar API/health.
+- [ ] Clonar do zero na sua máquina, executar `docker compose up --build -d` e verificar API/health. O CI já reproduziu isso em runner Linux, mas a instalação no Windows do proprietário não foi testada.
 - [ ] Exercitar wallet 100, BET 80+80, replay com 50 requisições e comparar ledger.
 - [ ] Executar SQS redelivery/DLQ e matar/reiniciar o consumer **em ambiente de teste**, sem alterar dados reais.
 - [ ] Reiniciar o publisher com outbox pendente, acompanhar eventos e `eventId`.

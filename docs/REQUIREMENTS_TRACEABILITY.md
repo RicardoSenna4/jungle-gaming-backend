@@ -4,9 +4,9 @@
 
 **Baseline:** [docs/EVIDENCE_BASELINE.md](EVIDENCE_BASELINE.md) (commit `688ba47`, quando 29 testes ainda eram ignorados). Este documento descreve o estado **depois** das correções.
 
-**Commit de código auditado:** [`3cdb0eb`](https://github.com/RicardoSenna4/jungle-gaming-backend/commit/3cdb0eb4e3794e454321170878773e8098544765).
+**Commit de código auditado:** [`09acbd3`](https://github.com/RicardoSenna4/jungle-gaming-backend/commit/09acbd3be159acd482cd88e9814a105f8e29a45d).
 
-**Execução reproduzível:** [GitHub Actions #43760715469](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43760715469), na `main`, em 15/11/2026: **80 testes aprovados, 0 falhas, 0 erros e 0 ignorados**, em 12 targets. `typecheck`, lint, Prettier, build, Docker image, Compose config, migration up/down/reapply e SQS LocalStack passaram.
+**Execução reproduzível:** [GitHub Actions #43763470242](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43763470242), na `main`, em 15/11/2026: **80 testes aprovados, 0 falhas, 0 erros e 0 ignorados**, em 12 targets. `typecheck`, lint, Prettier, build, Docker image, Compose config, migration up/down/reapply e SQS LocalStack passaram. Também passou o smoke de boot e reinicialização real da API em Compose (SIGKILL/SIGTERM), com persistência e replay idempotente.
 
 > PASS significa que existe evidência de implementação e teste adequada ao item indicado, **não** garantia absoluta contra falhas de produção. PASS parcial indica que parte do comportamento continua dependente de smoke test real pelo proprietário. O status humano de entrega está documentado em [DELIVERY_CHECKLIST.md](DELIVERY_CHECKLIST.md).
 
@@ -41,7 +41,7 @@
 | R27 | Recovery/out-of-order/leases/restart | src/infrastructure/workers/ | pending-worker; sqs-localstack; outbox-publisher | PARCIAL (reinício real e falha de rede não testados integralmente) |
 | R28 | Logs JSON, redaction e métricas | src/infrastructure/telemetry/ | test/unit/json-logger.spec.ts; metrics.service; http-api | PASS |
 | R29 | Liveness e readiness PostgreSQL/SQS | src/infrastructure/telemetry/health.service.ts | test/unit/health.service.spec.ts; http-api | PASS |
-| R30 | Documentação e instalação limpa | README.md; ARCHITECTURE.md; Dockerfile; docs/ | CI: docker compose build + config + test:all | PASS CI / smoke proprietário pendente |
+| R30 | Documentação e instalação limpa | README.md; ARCHITECTURE.md; Dockerfile; docs/ | CI: build + Compose + test:all + smoke:compose | PASS CI / instalação em máquina do proprietário pendente |
 | R31 | Auth opcional com extensão explícita | src/interfaces/http/provider-identity.guard.ts | test/unit/provider-identity.guard.spec.ts | PASS (guard no-op documentado) |
 | R32 | Testes reais, sem mock substituto | test/integration/; .github/workflows/ci.yml | CI 80 PASS, 0 FAIL, 0 SKIP | PASS |
 | R33 | Lock por wallet e ORM permitido | src/application/wager-processing.service.ts; MikroORM | test/integration/concurrency.spec.ts | PASS |
@@ -58,5 +58,5 @@
 
 - Autenticação OIDC/JWT real não foi implementada; existe um guard de extensão permissivo (o enunciado permite não implementar autenticação).
 - Nenhum banco/filas de produção foi usado. O teste distribuído é executado em PostgreSQL/LocalStack efêmeros.
-- Os testes de recuperação incluem reentrega real pelo LocalStack e falha simulada de publish; não provam todos os efeitos de queda de processo e rede sob operação real.
+- Os testes de recuperação incluem reentrega real pelo LocalStack, reinicialização da API por SIGKILL/SIGTERM e falha simulada de publish; não provam falhas de rede ou o instante exato pós-publicação/pré-marcação em todas as situações.
 - A verificação manual de instalação limpa e a liberação de acesso à banca continuam pendentes do proprietário.
