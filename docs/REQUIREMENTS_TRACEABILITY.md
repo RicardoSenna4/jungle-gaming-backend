@@ -2,7 +2,7 @@
 
 **Especificação soberana:** [CHALLENGE_SPEC.md](../CHALLENGE_SPEC.md) e [repositório oficial](https://github.com/junglegaming/backend-challenge). Os IDs R01–R34 são identificadores internos de auditoria, **não IDs do enunciado**.
 
-**Evidência de execução:** [GitHub Actions #43767143661](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43767143661), commit [`6f0f76b`](https://github.com/RicardoSenna4/jungle-gaming-backend/commit/6f0f76b5b86a5729093c8e3a1ede4da398dc4e04). Nesse snapshot foram executados **80 testes (0 falhas, 0 erros, 0 skips)**, 12 targets; PostgreSQL, LocalStack, migrations up/down/reapply, CI de qualidade e smoke do container com SIGKILL/SIGTERM. **Acompanhe o status do SHA entregue**, não só este snapshot.
+**Evidência de execução (snapshot histórico):** [CI #43770950239](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43770950239), commit [`3e540c6`](https://github.com/RicardoSenna4/jungle-gaming-backend/commit/3e540c6da0b7197ae1954c4315febd198a292b64): **80 testes, zero falhas, zero erros, zero skips**, 12 alvos, PostgreSQL, LocalStack, migrations e smoke do container com SIGKILL/SIGTERM. **Não use esse registro para afirmar aprovação de commits futuros.** Para o estado atual da `main`, confira [CI_EVIDENCE.md](CI_EVIDENCE.md) e valide que o SHA da última execução aprovada é o SHA submetido.
 
 **Como usar:** clique em código e teste na mesma linha. `PASS no CI` significa que as verificações citadas foram executadas no ambiente descartável; não é um certificado de produção. `PARCIAL` indica cenário adicional de falha ainda não induzido exatamente no instante crítico.
 

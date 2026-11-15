@@ -44,12 +44,12 @@ a partir de outro ou de relatórios históricos.
 
 ### CI
 
-**Evidências em links diretos:** [CI](../.github/workflows/ci.yml), [runner de 12 alvos](../scripts/test-suite-runner.ts), [concorrência real](../test/integration/concurrency.spec.ts), [SQS/LocalStack](../test/integration/sqs-localstack.spec.ts), [crash/restart em Compose](../scripts/smoke-compose.ts) e [última execução integral verificada no SHA 6f0f76b](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43767143661). Os relatórios de cada alvo ficam nos artefatos da execução do Actions.
+**Evidências em links diretos:** [CI](../.github/workflows/ci.yml), [runner de 12 alvos](../scripts/test-suite-runner.ts), [concorrência real](../test/integration/concurrency.spec.ts), [SQS/LocalStack](../test/integration/sqs-localstack.spec.ts), [crash/restart em Compose](../scripts/smoke-compose.ts) e [evidência de CI com distinção entre snapshot histórico e último commit](CI_EVIDENCE.md). Quando publicados, os artefatos e logs ficam associados à execução específica do Actions.
 
 As falhas em **commits intermediários** não tornam o HEAD automaticamente inválido nem devem ser apagadas para mascarar tentativas anteriores. Sempre confira o resultado **do commit submetido**; o badge da main pode mudar após novos commits.
 
 
-Na execução [#43763470242](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43763470242), correspondente ao commit `09acbd3be159acd482cd88e9814a105f8e29a45d`, passaram 80 testes sem skips (12 alvos) e o smoke real da aplicação. O script `smoke:compose` **derruba e reinicia o serviço `api`** e consome mensagens da fila de eventos local; nunca execute em sistemas compartilhados ou em produção. O job primeiro sobe os serviços, aplica migrations e roda os testes; em seguida inicia a API e verifica operações HTTP/SQS e persistência após SIGKILL/SIGTERM.
+O [snapshot aprovado #43770950239](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43770950239) do commit `3e540c6` comprova 80 testes sem falhas/skips (12 alvos) e smoke real da aplicação. O script `smoke:compose` **derruba e reinicia o serviço `api`** e consome mensagens da fila de eventos local; nunca execute em sistemas compartilhados ou em produção. Trata-se de **uma execução histórica**, não de certificação automática de commits posteriores. Consulte [CI_EVIDENCE](CI_EVIDENCE.md) e valide o SHA entregue.
 
 
 Workflow: [ci.yml](../.github/workflows/ci.yml). Executa em runner descartável,

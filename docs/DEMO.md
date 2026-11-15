@@ -1,4 +1,4 @@
-# Como executar e utilizar a aplicação
+# Guia de execução e validação passo a passo
 
 Este é um guia de primeiros passos para **qualquer pessoa que queira baixar o projeto e vê-lo funcionando localmente**, sem conhecer a arquitetura nem preparar banco de dados manualmente.
 
@@ -8,13 +8,14 @@ Este é um guia de primeiros passos para **qualquer pessoa que queira baixar o p
 
 - [Git](https://git-scm.com/downloads), para baixar o repositório.
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) no Windows/macOS, ou Docker Engine com Compose Plugin no Linux.
-- Um terminal: **PowerShell** (Windows) ou **Bash** (Linux, macOS ou WSL/Git Bash).
+- Um terminal: **PowerShell** (Windows) ou **Bash** (Linux, macOS, WSL/Ubuntu ou Git Bash).
+- Se optar por Bash, o comando **`curl`** precisa estar disponível. Os exemplos deste guia **não exigem `jq`**.
 
 Não é necessário instalar **Bun, Node.js, PostgreSQL ou LocalStack** para rodar a aplicação pelo Docker.
 
 Confirme que o Docker Desktop/Engine está iniciado e que as portas **3000**, **5432** e **4566** estão disponíveis.
 
-Confira as instalações:
+Confira as instalações no terminal escolhido:
 
 ~~~bash
 git --version
@@ -22,7 +23,28 @@ docker --version
 docker compose version
 ~~~
 
+### Qual terminal escolher no Windows?
+
+| Opção | O que instalar ou habilitar | Qual seção seguir |
+|---|---|---|
+| **PowerShell (mais simples)** | Git for Windows + Docker Desktop, com o Docker Engine iniciado. **Não precisa de WSL como terminal nem de `jq`** | **Opção A** da etapa 4 |
+| **WSL/Ubuntu** | WSL 2 com uma distribuição Linux; Docker Desktop usando o backend WSL 2 e integração habilitada para essa distribuição; Git e `curl` dentro do Linux | **Opção B** da etapa 4 |
+| **Git Bash** | Git for Windows (inclui Git Bash) e Docker Desktop; `docker` e `curl` devem estar disponíveis no PATH do Git Bash | **Opção B** da etapa 4 |
+
+**Usando WSL no Windows 11 (opcional):**
+
+1. No **PowerShell como administrador**, se ainda não tiver WSL, execute `wsl --install -d Ubuntu` e siga a instalação/reinicialização solicitada pelo Windows. Caso já tenha WSL, verifique com `wsl --list --verbose` se a distribuição está em WSL 2.
+2. Abra o **Docker Desktop → Settings → General** e confirme o uso do **WSL 2 based engine**. Depois acesse **Settings → Resources → WSL Integration** e habilite a distribuição Ubuntu, se essa tela estiver disponível na sua versão do Docker Desktop.
+3. Abra o terminal **Ubuntu (WSL)**. Instale Git e `curl`, se necessário: `sudo apt update && sudo apt install -y git curl`.
+4. Ainda no Ubuntu, confirme `git --version`, `curl --version` e `docker compose version`. Faça o clone preferencialmente no diretório pessoal do Linux (`~/`), não em `/mnt/c`.
+
+**Usando Git Bash:** abra o aplicativo **Git Bash** instalado com Git for Windows, confirme `git --version`, `curl --version` e `docker compose version` e siga os blocos marcados como Bash. Para este roteiro não é necessário `jq`. Se o comando `docker` não existir no Git Bash, reinicie o terminal depois de instalar/iniciar o Docker Desktop e confira o PATH.
+
+**Não misture sintaxes:** os comandos da **Opção A** usam `$walletId` e `Invoke-RestMethod` (PowerShell); os da **Opção B** usam `$WALLET_ID` e `curl` (Bash). Execute cada sequência no terminal indicado.
+
 ## 2. Baixar e iniciar a aplicação
+
+No Windows, use a janela do **PowerShell**, do **Ubuntu/WSL** ou do **Git Bash** que você selecionou acima. Para WSL, execute o clone dentro do filesystem do Linux. Não é necessário copiar arquivos de configuração nem fornecer credenciais AWS.
 
 Abra o terminal e execute:
 
@@ -280,7 +302,21 @@ docker compose up -d
 
 **Atenção aos dados:** este Compose é destinado a demonstração e desenvolvimento. A configuração atual do serviço PostgreSQL não possui volume nomeado próprio, portanto **não conte com a persistência da carteira depois de recriar os containers**. Não use `docker compose down -v` com dados importantes.
 
-## 8. E quanto aos testes automatizados?
+## 8. Conferência rápida antes de considerar a instalação funcionando
+
+Verifique localmente, no terminal escolhido:
+
+- [ ] `docker compose ps` lista `api`, `postgres` e `localstack` em execução.
+- [ ] As duas rotas de saúde abrem no navegador, com `status: "ok"`.
+- [ ] Criar a carteira devolve HTTP **201**, um UUID e saldo inicial `100.00`.
+- [ ] A BET de `25.00` deixa o saldo em `75.00`.
+- [ ] Repetir a mesma BET retorna `idempotentReplay: true` sem novo desconto.
+- [ ] O REFUND restaura o saldo a `100.00`.
+- [ ] O ledger apresenta três lançamentos, e a reconciliação retorna `consistent: true`.
+
+**Estado da validação:** a automação já executou esse fluxo em container Linux no [CI histórico aprovado](CI_EVIDENCE.md). **Ainda não foi comprovado aqui um ensaio interativo na máquina Windows do usuário, em WSL ou no Git Bash**; esta lista permite que qualquer pessoa faça essa homologação manual e reporte dificuldades reais.
+
+## 9. E quanto aos testes automatizados?
 
 **Você não precisa executar os testes para usar a aplicação.** Os testes de concorrência, recuperação e SQS estão documentados em [TESTING.md](TESTING.md) e são executados no [GitHub Actions](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/workflows/ci.yml).
 

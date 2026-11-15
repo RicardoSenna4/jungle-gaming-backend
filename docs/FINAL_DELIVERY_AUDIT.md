@@ -2,14 +2,13 @@
 
 ## Resultado observado
 
-O commit `09acbd3be159acd482cd88e9814a105f8e29a45d` passou no
-[CI da main #43763470242](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43763470242):
+O snapshot de código [`3e540c6`](https://github.com/RicardoSenna4/jungle-gaming-backend/commit/3e540c6da0b7197ae1954c4315febd198a292b64) passou no
+[CI da main #43770950239](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43770950239):
 **80 testes aprovados, 0 erros, 0 falhas, 0 skips, 12 alvos**; passou ainda em
 typecheck, ESLint, Prettier, build, build Docker, `docker compose config`, migrations
 up/down/reapply, PostgreSQL e LocalStack. Além disso, o CI iniciou a API em Docker Compose, processou operações via HTTP/SQS e verificou ledger, reconciliação e eventos após reinicialização por SIGKILL e SIGTERM.
 
-A mesma árvore foi integrada na `main` por fast-forward. As branches de trabalho
-não possuem commits exclusivos pendentes de merge.
+A análise acima registra **uma execução histórica específica**. Para validar a entrega efetiva, confira a correspondência entre o SHA do [último commit da `main`](https://github.com/RicardoSenna4/jungle-gaming-backend/commits/main) e o [CI da branch](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/workflows/ci.yml?query=branch%3Amain), conforme [CI_EVIDENCE.md](CI_EVIDENCE.md).
 
 ## Parecer por área
 

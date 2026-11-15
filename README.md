@@ -15,13 +15,13 @@ Esta solução recebe `BET`, `WIN`, `LOSS`, `REFUND` e `ROLLBACK` por HTTP ou SQ
 
 **Stack:** Bun 1.1.38, TypeScript strict, NestJS, MikroORM, PostgreSQL 16, AWS SQS via LocalStack e Docker Compose. O [enunciado original](CHALLENGE_SPEC.md) foi preservado.
 
-**Evidência verificada:** no [CI da `main` para `6f0f76b`](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43767143661), houve **80 testes aprovados, zero falhas, zero testes ignorados**. Também passaram build, lint, migrations, PostgreSQL/LocalStack reais e um smoke em container com SIGKILL/SIGTERM e reinício. O badge acima reflete execuções subsequentes da `main`; compare sempre o SHA avaliado.
+**Estado da versão entregue:** consulte o [executar o CI da `main`](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/workflows/ci.yml?query=branch%3Amain) e confira se o SHA da execução aprovada coincide com o [último commit da branch](https://github.com/RicardoSenna4/jungle-gaming-backend/commits/main). **Evidência histórica verificada:** a [execução #43770950239](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43770950239), no commit [`3e540c6`](https://github.com/RicardoSenna4/jungle-gaming-backend/commit/3e540c6da0b7197ae1954c4315febd198a292b64), registrou **80 testes aprovados, zero falhas, zero ignorados** e smoke em container com SIGKILL/SIGTERM. Ela é um **snapshot histórico**, não afirmação de que futuros commits estejam aprovados. Consulte o [guia de evidências de CI](docs/CI_EVIDENCE.md).
 
 ## Execução rápida
 
 Requer Docker Engine + Docker Compose v2 e portas 3000, 5432 e 4566 livres.
 
-**Primeira vez?** Siga o [passo a passo de instalação e uso](docs/DEMO.md), com comandos para Windows/PowerShell e Linux/macOS.
+**Primeira vez?** Siga o [guia de execução e validação passo a passo](docs/DEMO.md), com orientações para **PowerShell (Windows), WSL/Ubuntu, Git Bash, Linux e macOS**. O Docker executa a API e as dependências; Bun e PostgreSQL não precisam ser instalados no host.
 
 ~~~bash
 git clone https://github.com/RicardoSenna4/jungle-gaming-backend.git
@@ -122,6 +122,6 @@ O CI executa todos os testes necessários com PostgreSQL e LocalStack reais. O r
 
 ## Documentação
 
-[Arquitetura](ARCHITECTURE.md) · [Rastreabilidade](docs/REQUIREMENTS_TRACEABILITY.md) · [API](docs/API.md) · [Como executar e usar](docs/DEMO.md) · [Testes](docs/TESTING.md) · [Falhas](docs/FAILURE_RECOVERY.md) · [ADRs](docs/02_ADR_REGISTER.md) · [Índice de ADRs](docs/adr/README.md) · [Auditoria](docs/FINAL_DELIVERY_AUDIT.md) · [Enunciado](CHALLENGE_SPEC.md).
+[Arquitetura](ARCHITECTURE.md) · [Rastreabilidade](docs/REQUIREMENTS_TRACEABILITY.md) · [API](docs/API.md) · [Como executar e usar](docs/DEMO.md) · [Evidência de CI](docs/CI_EVIDENCE.md) · [Testes](docs/TESTING.md) · [Falhas](docs/FAILURE_RECOVERY.md) · [ADRs](docs/02_ADR_REGISTER.md) · [Índice de ADRs](docs/adr/README.md) · [Auditoria](docs/FINAL_DELIVERY_AUDIT.md) · [Enunciado](CHALLENGE_SPEC.md).
 
 Os resultados vermelhos de commits intermediários permanecem no histórico; a entrega é demonstrada pelo **CI verde associado ao SHA submetido**, sem reescrever a história do projeto.

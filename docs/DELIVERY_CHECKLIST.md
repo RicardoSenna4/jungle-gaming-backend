@@ -1,6 +1,6 @@
 # Checklist de aceite da entrega
 
-**Código avaliado:** [`09acbd3`](https://github.com/RicardoSenna4/jungle-gaming-backend/commit/09acbd3be159acd482cd88e9814a105f8e29a45d), [CI `main` #43763470242](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43763470242), **80 PASS/0 FAIL/0 SKIP** e smoke em container aprovado com SIGKILL/SIGTERM. Todos os estados a seguir distinguem prova automatizada de aprovação humana.
+**CI a conferir antes de submeter:** [executar o CI da `main`](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/workflows/ci.yml?query=branch%3Amain); compare o SHA com o [HEAD da `main`](https://github.com/RicardoSenna4/jungle-gaming-backend/commits/main). **Snapshot histórico comprovado:** [#43770950239 no commit `3e540c6`](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43770950239) — **80 PASS / 0 FAIL / 0 SKIP**, smoke em container e SIGKILL/SIGTERM. Para distinguir snapshots de estado atual, consulte [CI_EVIDENCE.md](CI_EVIDENCE.md). Os estados abaixo não dispensam homologação humana.
 
 | Gate | Requisito | Estado | Evidência |
 |---|---|---|---|
@@ -19,15 +19,15 @@
 | G13 | Eventos concretos versionados | PASS | events unit + outbox/LocalStack |
 | G14 | HTTP, cursor, status, extensão auth | PASS | http-api, ledger-pagination, provider-identity.guard |
 | G15 | JSON logs, métricas, health, reconciliação | PASS | json-logger, metrics, health, http-api |
-| G16 | CI do código executa todos os testes sem skips e smoke container | PASS | [Actions #43763470242](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43763470242) |
-| G17 | README, arquitetura e evidências consistentes | PASS documentação | [README](../README.md), [API](API.md), [DEMO](DEMO.md), [rastreabilidade](REQUIREMENTS_TRACEABILITY.md) |
+| G16 | CI do código executa todos os testes sem skips e smoke container | PASS no snapshot; verificar SHA entregue | [Evidência histórica e CI atual](CI_EVIDENCE.md) |
+| G17 | README, arquitetura e evidências consistentes | PASS documentação | [README](../README.md), [API](API.md), [guia de execução](DEMO.md), [rastreabilidade](REQUIREMENTS_TRACEABILITY.md) |
 | G18 | Sem segredos reais, review e instalação limpa | PENDENTE HOMOLOGAÇÃO | Conferir histórico + smoke local |
 | G19 | Visibilidade e acesso dos avaliadores | PENDENTE HUMANO | Repositório consultado como público; confirmar se essa visibilidade foi autorizada e se atende às regras do processo seletivo |
 | G20 | Revisão final e submissão ao recrutador | PENDENTE HUMANO | Confirmação do proprietário |
 
 ## Para você executar antes de enviar
 
-- [ ] Clonar do zero na sua máquina, executar `docker compose up --build -d` e verificar API/health. O CI já reproduziu isso em runner Linux, mas a instalação no Windows do proprietário não foi testada.
+- [ ] Clonar do zero na sua máquina e seguir o [guia passo a passo](DEMO.md) em PowerShell. Se usar WSL/Ubuntu ou Git Bash, conferir Git, curl, Docker Desktop e integração WSL conforme as instruções. O CI reproduziu o fluxo em Linux, mas **não substitui testes locais em Windows/WSL/Git Bash**.
 - [ ] Exercitar wallet 100, BET 80+80, replay com 50 requisições e comparar ledger.
 - [ ] Executar SQS redelivery/DLQ e matar/reiniciar o consumer **em ambiente de teste**, sem alterar dados reais.
 - [ ] Reiniciar o publisher com outbox pendente, acompanhar eventos e `eventId`.
