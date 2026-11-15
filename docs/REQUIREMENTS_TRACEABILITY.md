@@ -1,62 +1,57 @@
-# Rastreamento do desafio — implementação e evidências
+# Rastreabilidade — 34 requisitos, código e teste
 
-**Referência normativa:** [CHALLENGE_SPEC.md](../CHALLENGE_SPEC.md), confrontado com o [enunciado original](https://github.com/junglegaming/backend-challenge).
+**Especificação soberana:** [CHALLENGE_SPEC.md](../CHALLENGE_SPEC.md) e [repositório oficial](https://github.com/junglegaming/backend-challenge). Os IDs R01–R34 são identificadores internos de auditoria, **não IDs do enunciado**.
 
-**Baseline:** [docs/EVIDENCE_BASELINE.md](EVIDENCE_BASELINE.md) (commit `688ba47`, quando 29 testes ainda eram ignorados). Este documento descreve o estado **depois** das correções.
+**Evidência de execução:** [GitHub Actions #43767143661](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43767143661), commit [`6f0f76b`](https://github.com/RicardoSenna4/jungle-gaming-backend/commit/6f0f76b5b86a5729093c8e3a1ede4da398dc4e04). Nesse snapshot foram executados **80 testes (0 falhas, 0 erros, 0 skips)**, 12 targets; PostgreSQL, LocalStack, migrations up/down/reapply, CI de qualidade e smoke do container com SIGKILL/SIGTERM. **Acompanhe o status do SHA entregue**, não só este snapshot.
 
-**Commit de código auditado:** [`09acbd3`](https://github.com/RicardoSenna4/jungle-gaming-backend/commit/09acbd3be159acd482cd88e9814a105f8e29a45d).
+**Como usar:** clique em código e teste na mesma linha. `PASS no CI` significa que as verificações citadas foram executadas no ambiente descartável; não é um certificado de produção. `PARCIAL` indica cenário adicional de falha ainda não induzido exatamente no instante crítico.
 
-**Execução reproduzível:** [GitHub Actions #43763470242](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43763470242), na `main`, em 15/11/2026: **80 testes aprovados, 0 falhas, 0 erros e 0 ignorados**, em 12 targets. `typecheck`, lint, Prettier, build, Docker image, Compose config, migration up/down/reapply e SQS LocalStack passaram. Também passou o smoke de boot e reinicialização real da API em Compose (SIGKILL/SIGTERM), com persistência e replay idempotente.
-
-> PASS significa que existe evidência de implementação e teste adequada ao item indicado, **não** garantia absoluta contra falhas de produção. PASS parcial indica que parte do comportamento continua dependente de smoke test real pelo proprietário. O status humano de entrega está documentado em [DELIVERY_CHECKLIST.md](DELIVERY_CHECKLIST.md).
-
-| ID | Requisito | Código e configuração | Prova automatizada | Status |
+| ID | Requisito | Implementação | Teste / prova | Resultado |
 |---|---|---|---|---|
-| R01 | Stack Bun, TypeScript strict, NestJS, MikroORM, PostgreSQL, SQS, Compose | package.json; Dockerfile; docker-compose.yml | CI build + container + LocalStack | PASS |
-| R02 | Migrations versionadas e reversíveis | src/infrastructure/database/migrations/ | CI migration:up / pending / down chain / up | PASS |
-| R03 | Money decimal exato e limites | src/domain/money.ts | test/unit/money.spec.ts; test/integration/schema-contracts.spec.ts | PASS |
-| R04 | Factories, rehydrate e domínio separado | src/domain/; src/application/wager-processing.service.ts | test/unit/domain-entities.spec.ts; integration | PASS (módulos integrados) |
-| R05 | Wallet por jogador e moeda, versionamento | src/application/wallets/wallet-repository.ts | test/integration/wallet-persistence.spec.ts | PASS |
-| R06 | Saldo não negativo e lock distribuído | src/application/wager-processing.service.ts; migrations | test/integration/concurrency.spec.ts | PASS |
-| R07 | OPENING e ledger no mesmo commit | src/application/wallets/wallet-repository.ts | test/integration/wallet-persistence.spec.ts | PASS |
-| R08 | BET debita e rejeita insuficiência | src/application/wager-processing.service.ts | test/integration/wager-processing.spec.ts | PASS |
-| R09 | WIN credita e LOSS não movimenta | src/application/wager-processing.service.ts | test/integration/wager-processing.spec.ts | PASS |
-| R10 | REFUND reverte BET integral e uma vez | src/application/wager-processing.service.ts | test/integration/reversal-processing.spec.ts | PASS |
-| R11 | ROLLBACK de BET/WIN/REFUND | src/application/wager-processing.service.ts | test/integration/reversal-processing.spec.ts | PASS |
-| R12 | Referência/contexto de provider, round, wallet, moeda | src/application/wager-processing.service.ts | test/integration/reversal-processing.spec.ts | PASS |
-| R13 | PENDING_REFERENCE, timer e TTL | src/infrastructure/workers/pending-reference.worker.ts | test/integration/pending-worker.spec.ts; reversal-processing | PASS (restart real não ensaiado) |
-| R14 | Estados terminais e transições | src/domain/wager-transaction.ts; wager-processing.service.ts | test/unit/domain-entities.spec.ts; reversal-processing | PASS |
-| R15 | Ledger append-only, checks e aritmética | src/infrastructure/database/migrations/ | test/integration/wallet-persistence.spec.ts; schema-contracts | PASS |
-| R16 | Reconciliação sem autocorreção | src/application/wallets/wallet-repository.ts | test/unit/wallet-reconciliation.spec.ts; http-api | PASS |
-| R17 | Idempotency-Key e replay original | src/application/wager-processing.service.ts | test/integration/concurrency.spec.ts; wager-processing | PASS |
-| R18 | Hash canônico e conflito por payload | src/application/canonical-hash.ts | test/unit/canonical-hash.spec.ts; wager-processing | PASS |
-| R19 | Rotas HTTP, validação, consultas e cursor | src/interfaces/http/; wallet-repository.ts | test/integration/http-api.spec.ts; ledger-pagination | PASS |
-| R20 | SQS FIFO, Inbox e caso de uso comum | src/infrastructure/workers/wager-transaction.consumer.ts | test/integration/sqs-consumer.spec.ts; sqs-localstack | PASS |
-| R21 | ACK pós-commit, retry, DLQ, shutdown | wager-transaction.consumer.ts; infra/localstack/init-queues.sh | test/integration/sqs-localstack.spec.ts | PASS parcial (SIGTERM real requer smoke) |
-| R22 | Inbox, ledger, wallet e outbox em commit SQL | src/application/wager-processing.service.ts | test/integration/sqs-consumer.spec.ts; wallet-persistence | PASS |
-| R23 | Outbox pós-commit, concorrência e retries | outbox-publisher.worker.ts | test/integration/outbox-publisher.spec.ts; sqs-localstack | PASS parcial (kill -9 real requer smoke) |
-| R24 | Eventos concretos e envelope versionado | src/domain/events/ | test/unit/events.spec.ts; sqs-localstack | PASS |
-| R25 | BET 80+80 / saldo 100 | src/application/wager-processing.service.ts | test/integration/concurrency.spec.ts A | PASS |
-| R26 | 50 replays / ≥3 processos / wallets paralelas | src/application/wager-processing.service.ts | test/integration/concurrency.spec.ts B-D | PASS |
-| R27 | Recovery/out-of-order/leases/restart | src/infrastructure/workers/ | pending-worker; sqs-localstack; outbox-publisher | PARCIAL (reinício real e falha de rede não testados integralmente) |
-| R28 | Logs JSON, redaction e métricas | src/infrastructure/telemetry/ | test/unit/json-logger.spec.ts; metrics.service; http-api | PASS |
-| R29 | Liveness e readiness PostgreSQL/SQS | src/infrastructure/telemetry/health.service.ts | test/unit/health.service.spec.ts; http-api | PASS |
-| R30 | Documentação e instalação limpa | README.md; ARCHITECTURE.md; Dockerfile; docs/ | CI: build + Compose + test:all + smoke:compose | PASS CI / instalação em máquina do proprietário pendente |
-| R31 | Auth opcional com extensão explícita | src/interfaces/http/provider-identity.guard.ts | test/unit/provider-identity.guard.spec.ts | PASS (guard no-op documentado) |
-| R32 | Testes reais, sem mock substituto | test/integration/; .github/workflows/ci.yml | CI 80 PASS, 0 FAIL, 0 SKIP | PASS |
-| R33 | Lock por wallet e ORM permitido | src/application/wager-processing.service.ts; MikroORM | test/integration/concurrency.spec.ts | PASS |
-| R34 | FailureCode estável, HTTP 400/409/422/202/503 | src/interfaces/http/; src/domain/failure-code.ts | test/integration/http-api.spec.ts | PASS |
+| **R01** | Stack Bun, TypeScript strict, NestJS, MikroORM, PostgreSQL, SQS, Compose | [package.json](../package.json) · [Dockerfile](../Dockerfile) · [docker-compose.yml](../docker-compose.yml) | [ci.yml](../.github/workflows/ci.yml) | **PASS no CI** |
+| **R02** | Migrations versionadas e reversíveis | [Migration20261113150000.ts](../src/infrastructure/database/migrations/Migration20261113150000.ts) · [Migration20261114130000.ts](../src/infrastructure/database/migrations/Migration20261114130000.ts) | [schema-contracts.spec.ts](../test/integration/schema-contracts.spec.ts) | **PASS no CI** |
+| **R03** | Money decimal exato e limites | [money.ts](../src/domain/money.ts) | [money.spec.ts](../test/unit/money.spec.ts) · [schema-contracts.spec.ts](../test/integration/schema-contracts.spec.ts) | **PASS no CI** |
+| **R04** | Factories, rehydrate e domínio separado | [wallet.ts](../src/domain/wallet.ts) · [wager-transaction.ts](../src/domain/wager-transaction.ts) | [domain-entities.spec.ts](../test/unit/domain-entities.spec.ts) | **PASS no CI** |
+| **R05** | Wallet por jogador e moeda, versionamento | [wallet-repository.ts](../src/application/wallets/wallet-repository.ts) | [wallet-persistence.spec.ts](../test/integration/wallet-persistence.spec.ts) | **PASS no CI** |
+| **R06** | Saldo não negativo e lock distribuído | [wager-processing.service.ts](../src/application/wager-processing.service.ts) | [concurrency.spec.ts](../test/integration/concurrency.spec.ts) | **PASS no CI** |
+| **R07** | OPENING e ledger no mesmo commit | [wallet-repository.ts](../src/application/wallets/wallet-repository.ts) | [wallet-persistence.spec.ts](../test/integration/wallet-persistence.spec.ts) | **PASS no CI** |
+| **R08** | BET debita e rejeita insuficiência | [wager-processing.service.ts](../src/application/wager-processing.service.ts) | [wager-processing.spec.ts](../test/integration/wager-processing.spec.ts) | **PASS no CI** |
+| **R09** | WIN credita e LOSS não movimenta | [wager-processing.service.ts](../src/application/wager-processing.service.ts) | [wager-processing.spec.ts](../test/integration/wager-processing.spec.ts) | **PASS no CI** |
+| **R10** | REFUND reverte BET integral e uma vez | [wager-processing.service.ts](../src/application/wager-processing.service.ts) | [reversal-processing.spec.ts](../test/integration/reversal-processing.spec.ts) | **PASS no CI** |
+| **R11** | ROLLBACK de BET/WIN/REFUND | [wager-processing.service.ts](../src/application/wager-processing.service.ts) | [reversal-processing.spec.ts](../test/integration/reversal-processing.spec.ts) | **PASS no CI** |
+| **R12** | Referência/contexto de provider, round, wallet, moeda | [wager-processing.service.ts](../src/application/wager-processing.service.ts) | [reversal-processing.spec.ts](../test/integration/reversal-processing.spec.ts) | **PASS no CI** |
+| **R13** | PENDING_REFERENCE, timer e TTL | [pending-reference.worker.ts](../src/infrastructure/workers/pending-reference.worker.ts) | [pending-worker.spec.ts](../test/integration/pending-worker.spec.ts) · [reversal-processing.spec.ts](../test/integration/reversal-processing.spec.ts) | **PASS no CI** |
+| **R14** | Estados terminais e transições | [wager-transaction.ts](../src/domain/wager-transaction.ts) | [domain-entities.spec.ts](../test/unit/domain-entities.spec.ts) | **PASS no CI** |
+| **R15** | Ledger append-only, checks e aritmética | [Migration20261113150000.ts](../src/infrastructure/database/migrations/Migration20261113150000.ts) · [ledger.ts](../src/domain/ledger.ts) | [schema-contracts.spec.ts](../test/integration/schema-contracts.spec.ts) · [wallet-persistence.spec.ts](../test/integration/wallet-persistence.spec.ts) | **PASS no CI** |
+| **R16** | Reconciliação sem autocorreção | [wallet-repository.ts](../src/application/wallets/wallet-repository.ts) | [wallet-persistence.spec.ts](../test/integration/wallet-persistence.spec.ts) · [http-api.spec.ts](../test/integration/http-api.spec.ts) | **PASS no CI** |
+| **R17** | Idempotency-Key e replay original | [wager-processing.service.ts](../src/application/wager-processing.service.ts) | [concurrency.spec.ts](../test/integration/concurrency.spec.ts) · [wager-processing.spec.ts](../test/integration/wager-processing.spec.ts) | **PASS no CI** |
+| **R18** | Hash canônico e conflito por payload | [canonical-hash.ts](../src/application/canonical-hash.ts) | [canonical-hash.spec.ts](../test/unit/canonical-hash.spec.ts) | **PASS no CI** |
+| **R19** | Rotas HTTP, validação, consultas e cursor | [app.controller.ts](../src/interfaces/http/app.controller.ts) · [wallet.controller.ts](../src/interfaces/http/wallet.controller.ts) | [http-api.spec.ts](../test/integration/http-api.spec.ts) · [ledger-pagination.spec.ts](../test/integration/ledger-pagination.spec.ts) | **PASS no CI** |
+| **R20** | SQS FIFO, Inbox e caso de uso comum | [wager-transaction.consumer.ts](../src/infrastructure/workers/wager-transaction.consumer.ts) | [sqs-consumer.spec.ts](../test/integration/sqs-consumer.spec.ts) · [sqs-localstack.spec.ts](../test/integration/sqs-localstack.spec.ts) | **PASS no CI** |
+| **R21** | ACK pós-commit, retry, DLQ, shutdown | [wager-transaction.consumer.ts](../src/infrastructure/workers/wager-transaction.consumer.ts) · [init-queues.sh](../infra/localstack/init-queues.sh) | [sqs-localstack.spec.ts](../test/integration/sqs-localstack.spec.ts) · [smoke-compose.ts](../scripts/smoke-compose.ts) | **PARCIAL** |
+| **R22** | Inbox, ledger, wallet e outbox em commit SQL | [wager-processing.service.ts](../src/application/wager-processing.service.ts) | [sqs-consumer.spec.ts](../test/integration/sqs-consumer.spec.ts) | **PASS no CI** |
+| **R23** | Outbox pós-commit, concorrência e retries | [outbox-publisher.worker.ts](../src/infrastructure/workers/outbox-publisher.worker.ts) | [outbox-publisher.spec.ts](../test/integration/outbox-publisher.spec.ts) · [sqs-localstack.spec.ts](../test/integration/sqs-localstack.spec.ts) | **PARCIAL** |
+| **R24** | Eventos concretos e envelope versionado | [wager-events.ts](../src/domain/events/wager-events.ts) · [wallet-balance-changed.ts](../src/domain/events/wallet-balance-changed.ts) | [events.spec.ts](../test/unit/events.spec.ts) | **PASS no CI** |
+| **R25** | BET 80+80 / saldo 100 | [wager-processing.service.ts](../src/application/wager-processing.service.ts) | [concurrency.spec.ts](../test/integration/concurrency.spec.ts) | **PASS no CI** |
+| **R26** | 50 replays / ≥3 processos / wallets paralelas | [wager-processing.service.ts](../src/application/wager-processing.service.ts) | [concurrency.spec.ts](../test/integration/concurrency.spec.ts) | **PASS no CI** |
+| **R27** | Recovery/out-of-order/leases/restart | [pending-reference.worker.ts](../src/infrastructure/workers/pending-reference.worker.ts) · [outbox-publisher.worker.ts](../src/infrastructure/workers/outbox-publisher.worker.ts) | [pending-worker.spec.ts](../test/integration/pending-worker.spec.ts) · [outbox-publisher.spec.ts](../test/integration/outbox-publisher.spec.ts) · [smoke-compose.ts](../scripts/smoke-compose.ts) | **PARCIAL** |
+| **R28** | Logs JSON, redaction e métricas | [json-logger.ts](../src/infrastructure/telemetry/json-logger.ts) · [metrics.service.ts](../src/infrastructure/telemetry/metrics.service.ts) | [json-logger.spec.ts](../test/unit/json-logger.spec.ts) · [metrics.service.spec.ts](../test/unit/metrics.service.spec.ts) | **PASS no CI** |
+| **R29** | Liveness e readiness PostgreSQL/SQS | [health.service.ts](../src/infrastructure/telemetry/health.service.ts) | [http-api.spec.ts](../test/integration/http-api.spec.ts) · [health.service.spec.ts](../test/unit/health.service.spec.ts) | **PASS no CI** |
+| **R30** | Documentação e instalação limpa | [README.md](../README.md) · [Dockerfile](../Dockerfile) · [docker-compose.yml](../docker-compose.yml) | [smoke-compose.ts](../scripts/smoke-compose.ts) · [ci.yml](../.github/workflows/ci.yml) | **PASS CI · homologação pendente** |
+| **R31** | Auth opcional com extensão explícita | [provider-identity.guard.ts](../src/interfaces/http/provider-identity.guard.ts) | [provider-identity.guard.spec.ts](../test/unit/provider-identity.guard.spec.ts) | **PASS no CI** |
+| **R32** | Testes reais, sem mock substituto | [test-suite-runner.ts](../scripts/test-suite-runner.ts) · [ci.yml](../.github/workflows/ci.yml) | [required-test-runner.spec.ts](../test/unit/required-test-runner.spec.ts) · [sqs-localstack.spec.ts](../test/integration/sqs-localstack.spec.ts) | **PASS no CI** |
+| **R33** | Lock por wallet e ORM permitido | [wager-processing.service.ts](../src/application/wager-processing.service.ts) | [concurrency.spec.ts](../test/integration/concurrency.spec.ts) | **PASS no CI** |
+| **R34** | FailureCode estável, HTTP 400/409/422/202/503 | [app.controller.ts](../src/interfaces/http/app.controller.ts) · [failure-code.ts](../src/domain/failure-code.ts) | [http-api.spec.ts](../test/integration/http-api.spec.ts) | **PASS no CI** |
 
-## Como auditar
+## Limites de comprovação
 
-1. Execute `bun run test:all` em ambiente com PostgreSQL e LocalStack disponíveis ou abra a execução de CI acima.
-2. Veja `scripts/test-suite-runner.ts` para a lista exata de specs executadas. O runner rejeita testes ignorados, arquivos novos não registrados e alvos com zero testes.
-3. Consulte [TESTING.md](TESTING.md), [FAILURE_RECOVERY.md](FAILURE_RECOVERY.md) e [ARCHITECTURE.md](../ARCHITECTURE.md) para premissas, cenários de falha e limites.
-4. **Não** interprete uma simulação de crash como um teste real de `SIGKILL` seguido de restart. Esse tipo de demonstração operacional está descrito no roteiro humano.
+- **SQS/Inbox:** testes reais de redelivery e DLQ passaram; o SIGTERM do container API foi verificado, porém não se injetou obrigatoriamente encerramento **durante o ACK** de mensagem em trânsito.
+- **Outbox:** publicador concorrente e publicação real verificados; o cenário exato de queda **após `SendMessage` e antes do `publishedAt`** segue exercitado por falha simulada, não SIGKILL disparado naquele instante.
+- **Persistência/restart:** smoke com SIGKILL e SIGTERM em container real comprovado; teste em AWS gerenciado não faz parte deste ambiente.
+- **Entrega humana:** instalação na máquina do proprietário, decisão de visibilidade/permissão do repositório, regras de submissão e envio ao recrutador dependem do usuário.
 
-## Limites a declarar
+## Navegação
 
-- Autenticação OIDC/JWT real não foi implementada; existe um guard de extensão permissivo (o enunciado permite não implementar autenticação).
-- Nenhum banco/filas de produção foi usado. O teste distribuído é executado em PostgreSQL/LocalStack efêmeros.
-- Os testes de recuperação incluem reentrega real pelo LocalStack, reinicialização da API por SIGKILL/SIGTERM e falha simulada de publish; não provam falhas de rede ou o instante exato pós-publicação/pré-marcação em todas as situações.
-- A verificação manual de instalação limpa e a liberação de acesso à banca continuam pendentes do proprietário.
+[README para avaliação](../README.md) · [arquitetura](../ARCHITECTURE.md) · [contratos HTTP](API.md) · [testes](TESTING.md) · [auditoria final](FINAL_DELIVERY_AUDIT.md) · [checklist](DELIVERY_CHECKLIST.md).
+
+**Nota sobre o histórico:** houve CI vermelho em commits intermediários. Não se deve apagar essas tentativas para fazer uma declaração de sucesso; o gate relevante é a execução vinculada ao commit final.
