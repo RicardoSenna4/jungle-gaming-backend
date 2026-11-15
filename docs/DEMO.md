@@ -1,87 +1,293 @@
-# Roteiro de demonstração (10–15 minutos)
+# Como executar e utilizar a aplicação
 
-Execute apenas com **dados fictícios e ambiente de desenvolvimento isolado**.
+Este é um guia de primeiros passos para **qualquer pessoa que queira baixar o projeto e vê-lo funcionando localmente**, sem conhecer a arquitetura nem preparar banco de dados manualmente.
 
-## Subir aplicação
+**O que você verá:** o projeto é um **back-end**, sem interface gráfica. Você pode abrir os endpoints de saúde no navegador e interagir com a API pelo terminal. As operações retornam **JSON** com carteira, saldo, transações e histórico financeiro.
+
+## 1. O que instalar
+
+- [Git](https://git-scm.com/downloads), para baixar o repositório.
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) no Windows/macOS, ou Docker Engine com Compose Plugin no Linux.
+- Um terminal: **PowerShell** (Windows) ou **Bash** (Linux, macOS ou WSL/Git Bash).
+
+Não é necessário instalar **Bun, Node.js, PostgreSQL ou LocalStack** para rodar a aplicação pelo Docker.
+
+Confirme que o Docker Desktop/Engine está iniciado e que as portas **3000**, **5432** e **4566** estão disponíveis.
+
+Confira as instalações:
 
 ~~~bash
+git --version
+docker --version
+docker compose version
+~~~
+
+## 2. Baixar e iniciar a aplicação
+
+Abra o terminal e execute:
+
+~~~bash
+git clone https://github.com/RicardoSenna4/jungle-gaming-backend.git
+cd jungle-gaming-backend
 docker compose up --build -d
-curl http://localhost:3000/health/ready
 ~~~
 
-Para os comandos abaixo, use Bash/WSL/Git Bash com `curl` e `jq`.
+Na primeira inicialização, o Docker fará download das imagens, compilará o back-end, iniciará PostgreSQL e LocalStack (SQS) e aplicará automaticamente as migrations. Isso pode levar algum tempo.
+
+Veja o estado dos containers:
 
 ~~~bash
-BASE=http://localhost:3000
-PLAYER="demo-$(date +%s)"
-PROVIDER="provider-$PLAYER"
-WALLET=$(curl -fsS "$BASE/wallets" -H 'content-type: application/json' \
-  -d "{\"playerId\":\"$PLAYER\",\"initialBalance\":{\"amount\":\"100.00\",\"currency\":\"BRL\"}}")
-WALLET_ID=$(printf '%s' "$WALLET" | jq -r .id)
-echo "$WALLET" | jq .
-
-BET=$(jq -nc --arg p "$PLAYER" --arg v "$PROVIDER" --arg w "$WALLET_ID" \
-  '{providerId:$v,externalTransactionId:"demo-bet",playerId:$p,walletId:$w,
-   roundId:"round-1",gameId:"game-1",kind:"BET",
-   money:{amount:"25.00",currency:"BRL"}}')
-
-# BET -> saldo 75.00
-curl -fsS "$BASE/wagering/transactions" -H 'content-type: application/json' \
-  -H 'Idempotency-Key: demo-bet-key' -d "$BET" | jq .
-# Replay -> saldo original 75.00, idempotentReplay true
-curl -fsS "$BASE/wagering/transactions" -H 'content-type: application/json' \
-  -H 'Idempotency-Key: demo-bet-key' -d "$BET" | jq .
-
-REFUND=$(jq -nc --arg p "$PLAYER" --arg v "$PROVIDER" --arg w "$WALLET_ID" \
-  '{providerId:$v,externalTransactionId:"demo-refund",playerId:$p,walletId:$w,
-   roundId:"round-1",gameId:"game-1",kind:"REFUND",
-   referenceExternalTransactionId:"demo-bet",
-   money:{amount:"25.00",currency:"BRL"}}')
-curl -fsS "$BASE/wagering/transactions" -H 'content-type: application/json' \
-  -H 'Idempotency-Key: demo-refund-key' -d "$REFUND" | jq .
-curl -fsS "$BASE/wallets/$WALLET_ID" | jq .
-curl -fsS "$BASE/wallets/$WALLET_ID/ledger?limit=20" | jq .
-curl -fsS -X POST "$BASE/wallets/$WALLET_ID/reconciliation" | jq .
+docker compose ps
 ~~~
 
-**Esperado:** `OPENING` 100.00; BET debita 25.00, replay não altera o saldo; REFUND credita 25.00; ledger contém 3 movimentos e reconciliação `consistent:true`.
-
-## Ensaios críticos já automatizados
-
-| Exercício | Comando de teste (em banco descartável) | Evidência |
-|---|---|---|
-| 80 + 80 sobre 100 | `bun run test:concurrency` | [A](../test/integration/concurrency.spec.ts) |
-| 50 replays concorrentes | `bun run test:concurrency` | [B](../test/integration/concurrency.spec.ts) |
-| Três processos | `bun run test:concurrency` | [D](../test/integration/concurrency.spec.ts) |
-| Referência antes da origem | `bun run test:integration:postgres` | [Pending](../test/integration/pending-worker.spec.ts) |
-| Inbox, SQS, redelivery, DLQ | `bun run test:integration:sqs` | [SQS](../test/integration/sqs-localstack.spec.ts) |
-| Outbox e falhas | `bun run test:recovery` | [Outbox](../test/integration/outbox-publisher.spec.ts) |
-
-Essas suites usam limpeza de fixtures com `TRUNCATE` e **não devem ser executadas sobre o mesmo banco com dados a preservar**. Para validar a partir de um clone limpo, siga [TESTING](TESTING.md).
-
-### Teste real de reinicialização
+Os três serviços devem aparecer: `api`, `postgres` e `localstack`. Para conferir o log da API:
 
 ~~~bash
-# Apenas em Compose isolado e descartável
-docker compose up --build -d
-SMOKE_ALLOW_DISRUPTION=1 bun run smoke:compose
+docker compose logs --tail=80 api
 ~~~
 
-O script [`scripts/smoke-compose.ts`](../scripts/smoke-compose.ts) processa HTTP + SQS, consome mensagens da fila de eventos e encerra/reinicia o container `api` com SIGKILL/SIGTERM. **Não execute em produção ou em ambiente compartilhado.** [Execução verificada no CI](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43767143661).
+## 3. Verificar o sistema no navegador
 
-## Apresentação em 10–15 minutos
+Abra estes links:
 
-| Tempo | Assunto |
+1. [http://localhost:3000/health/live](http://localhost:3000/health/live) — funcionamento do processo.
+2. [http://localhost:3000/health/ready](http://localhost:3000/health/ready) — conectividade com banco e SQS.
+
+O primeiro deverá exibir:
+
+~~~json
+{"status":"ok"}
+~~~
+
+O segundo, quando tudo estiver pronto:
+
+~~~json
+{"status":"ok","checks":{"postgres":"up","sqs":"up"}}
+~~~
+
+Se o segundo retornar **503**, o sistema ainda não está pronto: confira `docker compose ps` e os logs dos serviços.
+
+## 4. Criar uma carteira e executar operações
+
+Você vai: criar uma carteira com **100.00 BRL**, apostar **25.00 BRL**, repetir a mesma requisição para comprovar a idempotência, estornar a aposta e consultar saldo/ledger.
+
+Escolha **um** dos caminhos abaixo conforme seu terminal. **Execute os comandos na mesma sessão**, pois cada passo reutiliza variáveis do anterior.
+
+### Opção A — Windows (PowerShell)
+
+#### A.1. Criar carteira
+
+Copie e execute o bloco completo:
+
+~~~powershell
+$base = "http://localhost:3000"
+$playerId = "demo-" + [guid]::NewGuid().ToString("N")
+$providerId = "provider-" + $playerId
+
+$walletBody = @{
+  playerId = $playerId
+  initialBalance = @{ amount = "100.00"; currency = "BRL" }
+} | ConvertTo-Json -Depth 5
+
+$wallet = Invoke-RestMethod -Method Post -Uri "$base/wallets" -ContentType "application/json" -Body $walletBody
+$walletId = $wallet.id
+$wallet | ConvertTo-Json -Depth 5
+~~~
+
+**O que esperar:** um `id` gerado automaticamente, `balance.amount` igual a `"100.00"` e `version` igual a `1`.
+
+#### A.2. Enviar uma aposta (BET)
+
+~~~powershell
+$betId = "bet-" + [guid]::NewGuid().ToString("N")
+$betKey = "key-" + $betId
+
+$betBody = @{
+  providerId = $providerId
+  externalTransactionId = $betId
+  playerId = $playerId
+  walletId = $walletId
+  roundId = "round-demo"
+  gameId = "game-demo"
+  kind = "BET"
+  money = @{ amount = "25.00"; currency = "BRL" }
+} | ConvertTo-Json -Depth 5
+
+$betHeaders = @{ "Idempotency-Key" = $betKey }
+Invoke-RestMethod -Method Post -Uri "$base/wagering/transactions" -ContentType "application/json" -Headers $betHeaders -Body $betBody | ConvertTo-Json -Depth 5
+~~~
+
+**O que esperar:** status `PROCESSED`, saldo `"75.00"` e `idempotentReplay: false`.
+
+#### A.3. Repetir a aposta sem novo desconto
+
+Execute **o mesmo comando**, reutilizando `$betBody` e `$betHeaders`:
+
+~~~powershell
+Invoke-RestMethod -Method Post -Uri "$base/wagering/transactions" -ContentType "application/json" -Headers $betHeaders -Body $betBody | ConvertTo-Json -Depth 5
+~~~
+
+**O que esperar:** `idempotentReplay: true`, mantendo o saldo original em `"75.00"`.
+
+#### A.4. Estornar a aposta (REFUND)
+
+~~~powershell
+$refundId = "refund-" + [guid]::NewGuid().ToString("N")
+$refundBody = @{
+  providerId = $providerId
+  externalTransactionId = $refundId
+  playerId = $playerId
+  walletId = $walletId
+  roundId = "round-demo"
+  gameId = "game-demo"
+  kind = "REFUND"
+  referenceExternalTransactionId = $betId
+  money = @{ amount = "25.00"; currency = "BRL" }
+} | ConvertTo-Json -Depth 5
+
+Invoke-RestMethod -Method Post -Uri "$base/wagering/transactions" -ContentType "application/json" -Headers @{ "Idempotency-Key" = "key-$refundId" } -Body $refundBody | ConvertTo-Json -Depth 5
+~~~
+
+**O que esperar:** `PROCESSED` e saldo restaurado para `"100.00"`.
+
+#### A.5. Ver o saldo e o histórico
+
+~~~powershell
+Invoke-RestMethod "$base/wallets/$walletId" | ConvertTo-Json -Depth 5
+Invoke-RestMethod "$base/wallets/$walletId/ledger?limit=20" | ConvertTo-Json -Depth 8
+Invoke-RestMethod -Method Post "$base/wallets/$walletId/reconciliation" | ConvertTo-Json -Depth 5
+~~~
+
+**O que esperar:** saldo `100.00`; três registros no ledger (`OPENING`, `BET`, `REFUND`) e reconciliação `consistent: true`. O replay não cria lançamento extra.
+
+### Opção B — Linux/macOS ou Bash (incluindo WSL/Git Bash)
+
+Este caminho utiliza apenas `curl`, normalmente disponível no sistema. Para evitar exigir `jq`, você copiará o ID retornado na criação da carteira.
+
+#### B.1. Criar carteira
+
+~~~bash
+BASE="http://localhost:3000"
+PLAYER_ID="demo-$(date +%s)-$RANDOM"
+PROVIDER_ID="provider-$PLAYER_ID"
+
+curl -sS -X POST "$BASE/wallets" -H "Content-Type: application/json" \
+  -d "{\"playerId\":\"$PLAYER_ID\",\"initialBalance\":{\"amount\":\"100.00\",\"currency\":\"BRL\"}}"
+~~~
+
+Copie o campo `"id"` da resposta (um UUID) para a variável:
+
+~~~bash
+WALLET_ID="COLE_AQUI_O_UUID_RETORNADO"
+~~~
+
+O saldo inicial deverá ser `100.00`.
+
+#### B.2. Enviar a aposta
+
+~~~bash
+BET_ID="bet-$PLAYER_ID"
+BET_KEY="key-$BET_ID"
+BET_BODY="{\"providerId\":\"$PROVIDER_ID\",\"externalTransactionId\":\"$BET_ID\",\"playerId\":\"$PLAYER_ID\",\"walletId\":\"$WALLET_ID\",\"roundId\":\"round-demo\",\"gameId\":\"game-demo\",\"kind\":\"BET\",\"money\":{\"amount\":\"25.00\",\"currency\":\"BRL\"}}"
+
+curl -sS -X POST "$BASE/wagering/transactions" \
+  -H "Content-Type: application/json" -H "Idempotency-Key: $BET_KEY" -d "$BET_BODY"
+~~~
+
+**O que esperar:** `PROCESSED` com saldo `75.00`.
+
+#### B.3. Repetir a mesma aposta
+
+~~~bash
+curl -sS -X POST "$BASE/wagering/transactions" \
+  -H "Content-Type: application/json" -H "Idempotency-Key: $BET_KEY" -d "$BET_BODY"
+~~~
+
+**O que esperar:** `idempotentReplay: true`, sem novo débito.
+
+#### B.4. Estornar a aposta
+
+~~~bash
+REFUND_ID="refund-$PLAYER_ID"
+REFUND_BODY="{\"providerId\":\"$PROVIDER_ID\",\"externalTransactionId\":\"$REFUND_ID\",\"playerId\":\"$PLAYER_ID\",\"walletId\":\"$WALLET_ID\",\"roundId\":\"round-demo\",\"gameId\":\"game-demo\",\"kind\":\"REFUND\",\"referenceExternalTransactionId\":\"$BET_ID\",\"money\":{\"amount\":\"25.00\",\"currency\":\"BRL\"}}"
+
+curl -sS -X POST "$BASE/wagering/transactions" \
+  -H "Content-Type: application/json" -H "Idempotency-Key: key-$REFUND_ID" -d "$REFUND_BODY"
+~~~
+
+**O que esperar:** `PROCESSED`, saldo `100.00`.
+
+#### B.5. Ver o resultado
+
+~~~bash
+curl -sS "$BASE/wallets/$WALLET_ID"
+curl -sS "$BASE/wallets/$WALLET_ID/ledger?limit=20"
+curl -sS -X POST "$BASE/wallets/$WALLET_ID/reconciliation"
+~~~
+
+**O que esperar:** saldo `100.00`, três lançamentos no ledger e `consistent: true`.
+
+## 5. Explorar outros recursos
+
+Para interações mais avançadas, você pode usar **Postman, Insomnia ou Bruno**, mas são opcionais. Não existe interface Swagger nem um painel visual nesta aplicação.
+
+| Recurso | Onde testar |
 |---|---|
-| 0–2 min | Problema, arquitetura e invariantes |
-| 2–4 min | Money, wallet, ledger e migrations |
-| 4–6 min | Lock por wallet, 80+80 e 50 replays |
-| 6–9 min | Inbox/SQS, outbox, eventos e falhas |
-| 9–12 min | CI real, SIGKILL/SIGTERM e reconciliação |
-| 12–15 min | ADRs, limitações e perguntas |
+| Consultar transação pelo ID | `GET /wagering/transactions/:transactionId` |
+| Consultar transação pelo provedor | `GET /providers/:providerId/wagering/transactions/:externalTransactionId` |
+| WIN (crédito) e LOSS (sem mudança de saldo) | `POST /wagering/transactions` com novo ID e chave |
+| ROLLBACK | `POST /wagering/transactions` com referência elegível e valor integral |
+| Métricas da aplicação | [http://localhost:3000/metrics](http://localhost:3000/metrics) |
+| Contrato SQS, Inbox e Outbox | [API](API.md) e [testes LocalStack](../test/integration/sqs-localstack.spec.ts) |
 
-Explique por que a garantia é **at-least-once**, por que SQS FIFO não substitui idempotência SQL e como o ledger é usado na reconciliação. Consulte [arquitetura](../ARCHITECTURE.md), [ADRs](02_ADR_REGISTER.md) e [checklist humano](DELIVERY_CHECKLIST.md).
+Detalhes dos tipos de transação e retornos estão em [API.md](API.md).
 
-## Passos exclusivos do proprietário
+## 6. Solução de problemas
 
-Conferir clone limpo em sua máquina, permissões/visibilidade, política de entrega e uso de IA, revisão dos commits e envio ao recrutador. O CI verde não conclui essas ações.
+| Sintoma | O que fazer |
+|---|---|
+| Docker não encontrado | Instale/abra o Docker Desktop e reinicie o terminal |
+| API indisponível em `localhost:3000` | Rode `docker compose ps` e `docker compose logs --tail=100 api` |
+| Portas 3000, 5432 ou 4566 ocupadas | Encerre o programa que usa a porta e reinicie os serviços |
+| `health/live` funciona, `health/ready` retorna 503 | Confira ``docker compose logs postgres`` e ``docker compose logs localstack`` |
+| `WALLET_ALREADY_EXISTS` | Crie outro `playerId`; os exemplos geram um valor novo |
+| `IDEMPOTENCY_PAYLOAD_CONFLICT` | Use uma chave nova para um payload diferente |
+| Erro 422 por saldo insuficiente | Consulte o saldo de sua wallet antes de apostar |
+| Resposta 202/`PENDING_REFERENCE` | A referência ainda não foi processada; consulte o status da transação posteriormente |
+| Comando Bash não funciona no PowerShell | Utilize a **Opção A**; variáveis e aspas são diferentes |
+
+Mais detalhes nos logs:
+
+~~~bash
+docker compose logs --tail=100 api
+docker compose logs --tail=100 postgres
+docker compose logs --tail=100 localstack
+~~~
+
+## 7. Parar e reiniciar
+
+Para encerrar o ambiente:
+
+~~~bash
+docker compose down
+~~~
+
+Para iniciar novamente:
+
+~~~bash
+docker compose up -d
+~~~
+
+**Atenção aos dados:** este Compose é destinado a demonstração e desenvolvimento. A configuração atual do serviço PostgreSQL não possui volume nomeado próprio, portanto **não conte com a persistência da carteira depois de recriar os containers**. Não use `docker compose down -v` com dados importantes.
+
+## 8. E quanto aos testes automatizados?
+
+**Você não precisa executar os testes para usar a aplicação.** Os testes de concorrência, recuperação e SQS estão documentados em [TESTING.md](TESTING.md) e são executados no [GitHub Actions](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/workflows/ci.yml).
+
+As suítes de integração podem executar `TRUNCATE` e apagar dados de testes. Não as execute no mesmo banco onde quiser manter a carteira criada.
+
+O smoke `scripts/smoke-compose.ts` **derruba e reinicia o container** e consome eventos da fila de teste. Não faz parte deste guia inicial e não deve ser executado em ambiente compartilhado.
+
+---
+
+Ao concluir a etapa 4, você terá iniciado a API, criado uma carteira, registrado e estornado uma aposta, confirmado a idempotência e consultado o ledger e a reconciliação — tudo localmente.

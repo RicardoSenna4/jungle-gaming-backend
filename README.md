@@ -7,7 +7,7 @@ Processamento distribuído de operações de apostas com saldo consistente, ledg
 [![Bun 1.x](https://img.shields.io/badge/runtime-Bun%201.x-333333)](package.json)
 [![PostgreSQL 16](https://img.shields.io/badge/database-PostgreSQL%2016-316192)](docker-compose.yml)
 
-[**Executar**](#execução-rápida) · [**Arquitetura**](#arquitetura) · [**Requisitos**](#matriz-de-avaliação) · [**Testes críticos**](#testes-críticos) · [**API**](docs/API.md) · [**Demo**](docs/DEMO.md) · [**Limitações**](#decisões-e-limitações)
+[**Executar**](#execução-rápida) · [**Arquitetura**](#arquitetura) · [**Requisitos**](#matriz-de-avaliação) · [**Testes críticos**](#testes-críticos) · [**API**](docs/API.md) · [**Guia de uso**](docs/DEMO.md) · [**Limitações**](#decisões-e-limitações)
 
 ## Objetivo e estado
 
@@ -20,6 +20,8 @@ Esta solução recebe `BET`, `WIN`, `LOSS`, `REFUND` e `ROLLBACK` por HTTP ou SQ
 ## Execução rápida
 
 Requer Docker Engine + Docker Compose v2 e portas 3000, 5432 e 4566 livres.
+
+**Primeira vez?** Siga o [passo a passo de instalação e uso](docs/DEMO.md), com comandos para Windows/PowerShell e Linux/macOS.
 
 ~~~bash
 git clone https://github.com/RicardoSenna4/jungle-gaming-backend.git
@@ -64,7 +66,7 @@ A tabela utiliza **pesos oficiais**, não uma pontuação atribuída ao projeto.
 | Arquitetura | 10 | [ARCHITECTURE](ARCHITECTURE.md), [ADRs](docs/02_ADR_REGISTER.md) | [Domínio](test/unit/domain-entities.spec.ts) |
 | Testes | 10 | [Runner](scripts/test-suite-runner.ts), [CI](.github/workflows/ci.yml) | [Relatório e instruções](docs/TESTING.md) |
 | Observabilidade | 5 | [Métricas](src/infrastructure/telemetry/metrics.service.ts), [health](src/infrastructure/telemetry/health.service.ts) | [HTTP real](test/integration/http-api.spec.ts) |
-| Documentação | 5 | [API](docs/API.md), [arquitetura](ARCHITECTURE.md) | [Requisitos](docs/REQUIREMENTS_TRACEABILITY.md), [demo](docs/DEMO.md) |
+| Documentação | 5 | [API](docs/API.md), [arquitetura](ARCHITECTURE.md) | [Requisitos](docs/REQUIREMENTS_TRACEABILITY.md), [guia de uso](docs/DEMO.md) |
 
 ## Testes críticos
 
@@ -92,7 +94,7 @@ A tabela utiliza **pesos oficiais**, não uma pontuação atribuída ao projeto.
 | `POST` | `/wallets/:walletId/reconciliation` | Reconciliação |
 | `GET` | `/health/live`, `/health/ready`, `/metrics` | Saúde e observabilidade |
 
-[Contratos, payloads e códigos HTTP](docs/API.md) · [Roteiro de demonstração](docs/DEMO.md)
+[Contratos, payloads e códigos HTTP](docs/API.md) · [Passo a passo para executar e usar](docs/DEMO.md)
 
 ## Testes e CI
 
@@ -120,6 +122,6 @@ O CI executa todos os testes necessários com PostgreSQL e LocalStack reais. O r
 
 ## Documentação
 
-[Arquitetura](ARCHITECTURE.md) · [Rastreabilidade](docs/REQUIREMENTS_TRACEABILITY.md) · [API](docs/API.md) · [Demonstração](docs/DEMO.md) · [Testes](docs/TESTING.md) · [Falhas](docs/FAILURE_RECOVERY.md) · [ADRs](docs/02_ADR_REGISTER.md) · [Índice de ADRs](docs/adr/README.md) · [Auditoria](docs/FINAL_DELIVERY_AUDIT.md) · [Enunciado](CHALLENGE_SPEC.md).
+[Arquitetura](ARCHITECTURE.md) · [Rastreabilidade](docs/REQUIREMENTS_TRACEABILITY.md) · [API](docs/API.md) · [Como executar e usar](docs/DEMO.md) · [Testes](docs/TESTING.md) · [Falhas](docs/FAILURE_RECOVERY.md) · [ADRs](docs/02_ADR_REGISTER.md) · [Índice de ADRs](docs/adr/README.md) · [Auditoria](docs/FINAL_DELIVERY_AUDIT.md) · [Enunciado](CHALLENGE_SPEC.md).
 
 Os resultados vermelhos de commits intermediários permanecem no histórico; a entrega é demonstrada pelo **CI verde associado ao SHA submetido**, sem reescrever a história do projeto.
