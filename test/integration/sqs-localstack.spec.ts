@@ -1,10 +1,10 @@
-import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { SQSClient, SendMessageCommand, ReceiveMessageCommand } from '@aws-sdk/client-sqs';
 import { MikroORM } from '@mikro-orm/postgresql';
 import mikroOrmConfig from '../../src/infrastructure/database/mikro-orm.config';
 import { Money } from '../../src/domain/money';
 import { WalletRepository } from '../../src/application/wallets/wallet-repository';
 import { WagerTransactionConsumer } from '../../src/infrastructure/workers/wager-transaction.consumer';
-import { WagerTransactionOrmEntity } from '../../src/infrastructure/database/mikro-orm/entities';
+import { InboxOrmEntity, LedgerOrmEntity, OutboxOrmEntity, WagerTransactionOrmEntity } from '../../src/infrastructure/database/mikro-orm/entities';
 import { WagerProcessingService } from '../../src/application/wager-processing.service';
 
 const describeSqs = process.env.RUN_SQS_REAL === '1' ? describe : describe.skip;
@@ -82,6 +82,12 @@ describeSqs('LocalStack SQS FIFO end-to-end', () => {
     }
     await consumer.stop();
 
+    const wager = await em.findOneOrFail(WagerTransactionOrmEntity, { externalTransactionId: messageId });
     expect(await em.count(WagerTransactionOrmEntity, { externalTransactionId: messageId })).toBe(1);
+    expect(await em.count(InboxOrmEntity, { messageId, consumerName: 'wager-transaction-consumer-v1' })).toBe(1);
+    expect(await em.count(LedgerOrmEntity, { walletId: wallet.id, direction: 'DEBIT' })).toBe(1);
+    expect(await em.count(OutboxOrmEntity, { aggregateId: wager.id })).toBe(2);
+    const afterAck = await sqs.send(new ReceiveMessageCommand({ QueueUrl: queueUrl, WaitTimeSeconds: 1 }));
+    expect(afterAck.Messages ?? []).toHaveLength(0);
   });
 });

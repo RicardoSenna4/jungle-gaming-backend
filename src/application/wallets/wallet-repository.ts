@@ -64,7 +64,7 @@ export function decodeLedgerCursor(value: string): LedgerCursor {
       Buffer.from(value, 'base64url').toString('utf8'),
     ) as Partial<LedgerCursor>;
     if (typeof parsed.createdAt !== 'string' || typeof parsed.id !== 'string' ||
-      !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}(?:\\d{3})?Z$/.test(parsed.createdAt) ||
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}(?:\d{3})?Z$/.test(parsed.createdAt) ||
       !Number.isFinite(Date.parse(parsed.createdAt)) ||
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(parsed.id)) throw new Error();
     return { createdAt: parsed.createdAt, id: parsed.id };

@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
 import {
+  ChangeMessageVisibilityCommand,
   DeleteMessageCommand,
   GetQueueAttributesCommand,
   Message,
@@ -49,6 +50,7 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
   private polling?: Promise<void>;
   private readonly inFlight = new Set<Promise<unknown>>();
   private lastDlqSampleAt = 0;
+  private readonly maxInFlight = Math.max(1, Number(process.env.SQS_MAX_IN_FLIGHT ?? 20));
 
   constructor(
     private readonly service: WagerProcessingService,
@@ -136,11 +138,16 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
             MaxNumberOfMessages: 10,
             WaitTimeSeconds: 1,
             VisibilityTimeout: Number(process.env.SQS_VISIBILITY_TIMEOUT ?? 30),
+            MessageSystemAttributeNames: ['ApproximateReceiveCount'],
           }),
         );
         this.metrics?.increment('sqs_messages_received_total', {}, response.Messages?.length ?? 0);
         if (Date.now() - this.lastDlqSampleAt >= 30_000) await this.refreshDlqGauge();
         for (const message of response.Messages ?? []) {
+          if (this.stopping) break;
+          if (this.inFlight.size >= this.maxInFlight) {
+            await Promise.race(this.inFlight);
+          }
           const task = this.handleAndAck(message);
           this.inFlight.add(task);
           void task.then(
@@ -156,7 +163,19 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
 
   private async handleAndAck(message: Message): Promise<void> {
     const result = await this.handleMessage(message);
-    if (!result.acknowledged || !message.ReceiptHandle) return;
+    if (!message.ReceiptHandle) return;
+    if (!result.acknowledged) {
+      // Exponential visibility-delay retry; after maxReceiveCount the queue's
+      // redrive policy moves poison messages to the DLQ.
+      const attempt = Math.max(1, Number(message.Attributes?.ApproximateReceiveCount ?? 1));
+      const delaySeconds = Math.min(2 ** Math.min(attempt - 1, 7), 120);
+      await this.sqs.send(new ChangeMessageVisibilityCommand({
+        QueueUrl: this.queueUrl, ReceiptHandle: message.ReceiptHandle,
+        VisibilityTimeout: delaySeconds,
+      }));
+      this.metrics?.increment('sqs_messages_retry_total', { reason: result.failureCode ?? 'transient' });
+      return;
+    }
     await this.sqs.send(
       new DeleteMessageCommand({ QueueUrl: this.queueUrl, ReceiptHandle: message.ReceiptHandle }),
     );
@@ -180,18 +199,31 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
   private parseEnvelope(message: Message): WagerTransactionEnvelope {
     if (!message.Body) throw new Error('INVALID_MESSAGE');
     const envelope = JSON.parse(message.Body) as Partial<WagerTransactionEnvelope>;
-    if (
-      typeof envelope.messageId !== 'string' ||
-      envelope.type !== 'WagerTransactionRequested' ||
-      typeof envelope.data !== 'object' ||
-      envelope.data === null ||
-      typeof envelope.data.idempotencyKey !== 'string' ||
-      typeof envelope.data.providerId !== 'string' ||
-      (process.env.ALLOWED_PROVIDER_IDS?.split(',').filter(Boolean).length &&
-        !process.env.ALLOWED_PROVIDER_IDS.split(',').includes(envelope.data.providerId))
-    ) {
-      throw new Error('INVALID_MESSAGE');
-    }
+    const data = envelope.data;
+    const iso = envelope.occurredAt;
+    const valid =
+      typeof envelope.messageId === 'string' && envelope.messageId.trim().length > 0 &&
+      envelope.type === 'WagerTransactionRequested' &&
+      typeof iso === 'string' && /^\\d{4}-\\d{2}-\\d{2}T/.test(iso) &&
+      Number.isFinite(Date.parse(iso)) &&
+      typeof data === 'object' && data !== null &&
+      ['providerId', 'externalTransactionId', 'idempotencyKey', 'playerId',
+        'walletId', 'roundId', 'gameId'].every((key) =>
+          typeof (data as unknown as Record<string, unknown>)[key] === 'string' &&
+          String((data as unknown as Record<string, unknown>)[key]).trim().length > 0) &&
+      ['BET', 'WIN', 'LOSS', 'REFUND', 'ROLLBACK'].includes(data.kind) &&
+      typeof data.money === 'object' && data.money !== null &&
+      typeof data.money.amount === 'string' &&
+      /^(0|[1-9]\\d*)\\.\\d{2}$/.test(data.money.amount) &&
+      Number(data.money.amount) > 0 &&
+      typeof data.money.currency === 'string' &&
+      /^[A-Z]{3}$/.test(data.money.currency) &&
+      (!(data.kind === 'REFUND' || data.kind === 'ROLLBACK') ||
+        (typeof data.referenceExternalTransactionId === 'string' &&
+          data.referenceExternalTransactionId.trim().length > 0)) &&
+      (!process.env.ALLOWED_PROVIDER_IDS?.split(',').filter(Boolean).length ||
+        process.env.ALLOWED_PROVIDER_IDS.split(',').includes(data.providerId));
+    if (!valid) throw new Error('INVALID_MESSAGE');
     return envelope as WagerTransactionEnvelope;
   }
 

@@ -114,6 +114,24 @@ describeIntegration('HTTP API contracts', () => {
     expect(replay.status).toBe(200);
     expect(replay.body).toMatchObject({ idempotentReplay: true, balance: { amount: '75.00' } });
 
+    const rejected = await request('/wagering/transactions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'idempotency-key': 'http-rejected' },
+      body: JSON.stringify({ providerId: 'http-provider', externalTransactionId: 'http-rejected',
+        playerId: 'http-player', walletId, roundId: 'http-round', gameId: 'http-game',
+        kind: 'BET', money: { amount: '999.00', currency: 'BRL' } }),
+    });
+    expect(rejected.status).toBe(422);
+    const rejectedReplay = await request('/wagering/transactions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'idempotency-key': 'http-rejected' },
+      body: JSON.stringify({ providerId: 'http-provider', externalTransactionId: 'http-rejected',
+        playerId: 'http-player', walletId, roundId: 'http-round', gameId: 'http-game',
+        kind: 'BET', money: { amount: '999.00', currency: 'BRL' } }),
+    });
+    expect(rejectedReplay.status).toBe(422);
+    expect(rejectedReplay.body).toMatchObject({ status: 'REJECTED', idempotentReplay: true });
+
     const byId = await request(`/wagering/transactions/${transaction.body.transactionId}`);
     expect(byId.status).toBe(200);
     const byExternal = await request(

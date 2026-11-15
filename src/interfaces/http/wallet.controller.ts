@@ -27,7 +27,7 @@ export class WalletController {
   }
 
   @Get(':walletId')
-  get(@Param('walletId', new ParseUUIDPipe({ version: 'all' })) walletId: string) {
+  get(@Param('walletId', new ParseUUIDPipe({ version: '4' })) walletId: string) {
     return this.wallets.getWallet(walletId);
   }
 

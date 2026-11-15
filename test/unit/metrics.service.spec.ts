@@ -14,6 +14,12 @@ describe('MetricsService', () => {
     expect(output).toContain('wager_processing_duration_seconds_count{source="sqs"} 1');
   });
 
+  it('can expose a reconciliation mismatch counter', () => {
+    const metrics = new MetricsService();
+    metrics.increment('wallet_reconciliation_mismatches_total');
+    expect(metrics.renderPrometheus()).toContain('wallet_reconciliation_mismatches_total 1');
+  });
+
   it('escapes Prometheus label values', () => {
     const metrics = new MetricsService();
     metrics.increment('sqs_messages_unacked_total', { reason: 'bad"value' });
