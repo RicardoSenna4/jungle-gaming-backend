@@ -186,12 +186,6 @@ export class WagerProcessingService {
           });
         }
 
-        const external = await transactionRepository.findOne({
-          providerId: input.providerId,
-          externalTransactionId: input.externalTransactionId,
-        });
-        if (external) throw new FinancialProcessingError('EXTERNAL_TRANSACTION_EXISTS', 409);
-
         const wallet = await this.lockWallet(tx, input, money);
         // A second read AFTER obtaining the wallet lock closes the cross-process
         // check-then-insert race: all operations for a wallet now observe committed

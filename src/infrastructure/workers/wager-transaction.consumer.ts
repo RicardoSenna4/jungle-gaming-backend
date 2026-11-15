@@ -233,7 +233,7 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
       data.money !== null &&
       typeof data.money.amount === 'string' &&
       /^(0|[1-9]\d*)\.\d{2}$/.test(data.money.amount) &&
-      Number(data.money.amount) > 0 &&
+      data.money.amount !== '0.00' &&
       typeof data.money.currency === 'string' &&
       /^[A-Z]{3}$/.test(data.money.currency) &&
       (!(data.kind === 'REFUND' || data.kind === 'ROLLBACK') ||
