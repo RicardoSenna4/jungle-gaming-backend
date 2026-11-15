@@ -1,0 +1,25 @@
+name: format-smoke-once
+on:
+  push:
+    branches:
+      - test/final-runtime-smoke
+permissions:
+  contents: read
+jobs:
+  formatted:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.1.38'
+      - run: bun install --frozen-lockfile
+      - run: bunx prettier --write scripts/smoke-compose.ts
+      - name: Emit formatted smoke source
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = 'scripts/smoke-compose.ts';
+          console.log('__FORMATTED_FILE__' + JSON.stringify({path, content: fs.readFileSync(path, 'utf8')}));
+          NODE
