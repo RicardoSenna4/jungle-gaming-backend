@@ -3,6 +3,7 @@ import {
   SendMessageCommand,
   ReceiveMessageCommand,
   DeleteMessageCommand,
+  ChangeMessageVisibilityCommand,
 } from '@aws-sdk/client-sqs';
 import { MikroORM } from '@mikro-orm/postgresql';
 import mikroOrmConfig from '../../src/infrastructure/database/mikro-orm.config';
@@ -150,4 +151,77 @@ describeSqs('LocalStack SQS FIFO end-to-end', () => {
     );
     expect(afterAck.Messages ?? []).toHaveLength(0);
   });
+  it('survives a post-commit, pre-ACK redelivery over real SQS without another debit', async () => {
+    const wallet = await new WalletRepository(em).create('redelivery-player',
+      Money.from({ amount: '20.00', currency: 'BRL' }));
+    const messageId = 'redelivery-' + Date.now();
+    const body = {
+      messageId, type: 'WagerTransactionRequested', occurredAt: new Date().toISOString(),
+      data: { providerId:'redelivery-provider', externalTransactionId:messageId,
+        idempotencyKey:messageId, playerId:'redelivery-player', walletId:wallet.id,
+        roundId:'round',gameId:'game',kind:'BET',money:{amount:'5.00',currency:'BRL'}}
+    };
+    await sqs.send(new SendMessageCommand({
+      QueueUrl:queueUrl, MessageBody:JSON.stringify(body),
+      MessageGroupId:'redelivery-player', MessageDeduplicationId:messageId,
+    }));
+    const received = await sqs.send(new ReceiveMessageCommand({QueueUrl:queueUrl,WaitTimeSeconds:2,VisibilityTimeout:15}));
+    const message = received.Messages?.[0];
+    expect(message?.ReceiptHandle).toBeTruthy();
+    const consumer = new WagerTransactionConsumer(new WagerProcessingService(em));
+    try {
+      const committed = await consumer.handleMessage(message!);
+      expect(committed).toMatchObject({ acknowledged:true, status:'PROCESSED' });
+      // Simulate abrupt death after commit and before DeleteMessage.
+      await sqs.send(new ChangeMessageVisibilityCommand({
+        QueueUrl:queueUrl, ReceiptHandle:message!.ReceiptHandle,VisibilityTimeout:0,
+      }));
+      const retry = await sqs.send(new ReceiveMessageCommand({QueueUrl:queueUrl,WaitTimeSeconds:2}));
+      const redelivered = retry.Messages?.[0];
+      expect(redelivered?.ReceiptHandle).toBeTruthy();
+      expect(await consumer.handleMessage(redelivered!)).toMatchObject({acknowledged:true});
+      await sqs.send(new DeleteMessageCommand({
+        QueueUrl:queueUrl,ReceiptHandle:redelivered!.ReceiptHandle,
+      }));
+      expect(await em.count(InboxOrmEntity,{messageId})).toBe(1);
+      expect(await em.count(WagerTransactionOrmEntity,{externalTransactionId:messageId})).toBe(1);
+      expect(await em.count(LedgerOrmEntity,{walletId:wallet.id,direction:'DEBIT'})).toBe(1);
+    } finally { await consumer.onModuleDestroy(); }
+  });
+
+  it('redrives malformed messages to the real LocalStack DLQ after retries', async () => {
+    const previous = process.env.SQS_VISIBILITY_TIMEOUT;
+    process.env.SQS_VISIBILITY_TIMEOUT = '1';
+    const messageId = 'poison-' + Date.now();
+    const dlqUrl = 'http://localhost:4566/000000000000/wager-transactions-dlq.fifo';
+    const consumer = new WagerTransactionConsumer(new WagerProcessingService(em));
+    try {
+      await sqs.send(new SendMessageCommand({
+        QueueUrl:queueUrl,
+        MessageBody:JSON.stringify({messageId,type:'INVALID',occurredAt:new Date().toISOString()}),
+        MessageGroupId:'poison-group',MessageDeduplicationId:messageId,
+      }));
+      consumer.start();
+      let arrived = false;
+      const deadline = Date.now() + 22_000;
+      while (Date.now() < deadline && !arrived) {
+        const received = await sqs.send(new ReceiveMessageCommand({
+          QueueUrl:dlqUrl,WaitTimeSeconds:1,
+        }));
+        for (const msg of received.Messages ?? []) {
+          if (msg.Body?.includes(messageId)) arrived = true;
+          if (msg.ReceiptHandle) await sqs.send(new DeleteMessageCommand({
+            QueueUrl:dlqUrl,ReceiptHandle:msg.ReceiptHandle,
+          }));
+        }
+      }
+      expect(arrived).toBe(true);
+      expect(await em.count(WagerTransactionOrmEntity)).toBe(0);
+    } finally {
+      await consumer.onModuleDestroy();
+      if (previous === undefined) delete process.env.SQS_VISIBILITY_TIMEOUT;
+      else process.env.SQS_VISIBILITY_TIMEOUT = previous;
+    }
+  });
+
 });

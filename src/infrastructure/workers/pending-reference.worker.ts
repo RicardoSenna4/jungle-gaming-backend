@@ -37,6 +37,7 @@ export class PendingReferenceWorker implements OnModuleInit, OnModuleDestroy {
   start(): void {
     if (this.timer) return;
     this.timer = setInterval(() => {
+      if (this.inFlight) return;
       const task = this.runOnce();
       this.inFlight = task;
       void task
