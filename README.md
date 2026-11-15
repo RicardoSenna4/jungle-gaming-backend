@@ -7,6 +7,7 @@ Implementação do desafio técnico Jungle Gaming. O enunciado original está pr
 - Bun 1.1.38, NestJS, TypeScript estrito, MikroORM e PostgreSQL como única estratégia ORM/migration ativa.
 - `Money` imutável com `decimal.js`, entrada/saída decimal em string, duas casas fixas e moeda explícita.
 - Wallet com unicidade por jogador/moeda, saldo não negativo, lock pessimista por wallet, crédito `OPENING` e ledger append-only na mesma transação.
+- OPENING positivo também grava `WagerTransactionProcessed` e `WalletBalanceChanged` na Outbox, com saldo anterior, saldo posterior e versão da wallet.
 - BET, WIN, LOSS, REFUND e ROLLBACK com idempotência persistente, hash canônico, replay do snapshot original e validação das referências.
 - Referências fora de ordem em `PENDING_REFERENCE`, retry com backoff/TTL e worker agendado.
 - Consumer SQS FIFO com Inbox persistente, DLQ via redrive policy, reutilização do caso de uso financeiro, ack após commit e graceful shutdown.
@@ -14,6 +15,7 @@ Implementação do desafio técnico Jungle Gaming. O enunciado original está pr
 - Endpoints HTTP para wallets, ledger paginado, transações por ID/referência externa, submissão, reconciliação, health liveness/readiness e métricas Prometheus.
 - Reconciliação em uma consulta consistente, com comparação saldo materializado versus créditos menos débitos; divergências são sinalizadas e nunca corrigidas automaticamente.
 - Logs JSON de processamento sem payload monetário, contadores de negócio/filas/retries e gauges de backlog/outbox/DLQ.
+- Eventos de integração são instanciados por subclasses concretas e serializados com versão; DTOs HTTP validam campos, moeda, escala decimal e tipos de operação.
 
 A autenticação não foi implementada, como permitido pelo desafio; endpoints e canal de mensagem permanecem sem autenticação nesta entrega. Em produção, a identidade do provedor deve ser validada por um IdP OIDC externo.
 
@@ -57,7 +59,9 @@ bun run test:sqs:real
 bun run db:migration:check
 ```
 
-Validação desta revisão: **30 testes unitários aprovados; 25 testes PostgreSQL de integração aprovados; 1 teste LocalStack pulado**. Typecheck, lint, format check, build e `db:migration:check` também passaram; todas as quatro migrations foram aplicadas em PostgreSQL 16. O teste end-to-end com LocalStack não foi executado porque Docker/LocalStack não estão disponíveis neste sandbox; não é apresentado como aprovado.
+Para executar o E2E real de SQS, use `docker compose up -d postgres localstack`, aplique as migrations e execute `bun run test:sqs:real`. O workflow do GitHub Actions executa esse comando dentro do job de integração depois de subir os serviços.
+
+Nesta revisão foram adicionados testes HTTP reais contra PostgreSQL, testes de eventos de OPENING e teste de recuperação do publisher após falha equivalente a crash entre envio e marcação publicada. No sandbox atual, os testes novos de wallet/OPENING, outbox e HTTP passaram; Docker/LocalStack não estão instalados localmente, portanto o gate SQS real permanece dependente do CI e não é declarado como aprovado localmente.
 
 ## Migrations
 

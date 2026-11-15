@@ -11,11 +11,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { WalletService } from '../../application/wallets/wallet-service';
-
-interface CreateWalletBody {
-  playerId: string;
-  initialBalance: { amount: string; currency: string };
-}
+import { CreateWalletRequestDto } from './dtos';
 
 @Controller('wallets')
 export class WalletController {
@@ -24,7 +20,7 @@ export class WalletController {
   constructor(private readonly wallets: WalletService) {}
 
   @Post()
-  create(@Body() body: CreateWalletBody) {
+  create(@Body() body: CreateWalletRequestDto) {
     return this.wallets.createWallet(body.playerId, body.initialBalance);
   }
 

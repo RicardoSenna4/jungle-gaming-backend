@@ -116,4 +116,29 @@ describeIntegration('transactional outbox publisher with PostgreSQL', () => {
     expect(persisted[0]?.claim_token).toBeNull();
     expect(persisted[0]?.claimed_until).toBeNull();
   });
+
+  it('recovers after a crash-equivalent failure between SQS send and published mark', async () => {
+    const row = await seedOutbox();
+    let sends = 0;
+    const publisher = worker(async () => {
+      sends += 1;
+      if (sends === 1) throw new Error('process crashed after send');
+    });
+
+    await expect(publisher.runOnce()).resolves.toMatchObject({ claimed: 1, failed: 1 });
+    await em
+      .getConnection()
+      .execute('update outbox_messages set next_attempt_at = now() where id = ?', [row.id]);
+    await expect(publisher.runOnce()).resolves.toEqual({ claimed: 1, published: 1, failed: 0 });
+
+    const persisted = await em
+      .getConnection()
+      .execute<Array<{ published_at: Date | null; attempts: number }>>(
+        'select published_at, attempts from outbox_messages where id = ?',
+        [row.id],
+      );
+    expect(sends).toBe(2);
+    expect(persisted[0]?.published_at).toBeTruthy();
+    expect(persisted[0]?.attempts).toBe(2);
+  });
 });

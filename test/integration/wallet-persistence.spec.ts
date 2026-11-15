@@ -5,6 +5,7 @@ import { Money } from '../../src/domain/money';
 import {
   WagerTransactionOrmEntity,
   LedgerOrmEntity,
+  OutboxOrmEntity,
   WalletOrmEntity,
 } from '../../src/infrastructure/database/mikro-orm/entities';
 
@@ -55,6 +56,22 @@ describeIntegration('wallet persistence with PostgreSQL', () => {
       await em.count(WagerTransactionOrmEntity, { kind: 'OPENING', status: 'PROCESSED' }),
     ).toBe(1);
     expect(await em.count(LedgerOrmEntity, { direction: 'CREDIT', amount: '100.10' })).toBe(1);
+    const events = await em.find(OutboxOrmEntity, {
+      aggregateId: (await em.findOneOrFail(WagerTransactionOrmEntity, { kind: 'OPENING' })).id,
+    });
+    expect(events.map((event) => event.eventType).sort()).toEqual(
+      ['WalletBalanceChanged', 'WagerTransactionProcessed'].sort(),
+    );
+    const balanceEvent = events.find((event) => event.eventType === 'WalletBalanceChanged');
+    expect(balanceEvent?.payload).toMatchObject({
+      eventType: 'WalletBalanceChanged',
+      version: 1,
+      data: {
+        walletVersion: 1,
+        balanceBefore: { amount: '0.00', currency: 'BRL' },
+        balanceAfter: { amount: '100.10', currency: 'BRL' },
+      },
+    });
   });
 
   it('detects a materialized-balance mismatch without automatically correcting it', async () => {

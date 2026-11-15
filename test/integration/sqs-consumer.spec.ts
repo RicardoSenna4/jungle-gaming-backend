@@ -77,7 +77,8 @@ describeIntegration('SQS consumer with transactional inbox', () => {
     );
     expect(await em.count(WagerTransactionOrmEntity, { kind: WagerKind.BET })).toBe(1);
     expect(await em.count(LedgerOrmEntity, { direction: 'DEBIT' })).toBe(1);
-    expect(await em.count(OutboxOrmEntity, { eventType: 'WagerTransactionProcessed' })).toBe(1);
+    expect(await em.count(OutboxOrmEntity, { eventType: 'WagerTransactionProcessed' })).toBe(2);
+    expect(await em.count(OutboxOrmEntity, { eventType: 'WalletBalanceChanged' })).toBe(2);
   });
 
   it('acknowledges malformed messages without creating financial records', async () => {

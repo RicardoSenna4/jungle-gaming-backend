@@ -6,6 +6,12 @@ import { Money } from '../domain/money';
 import { LedgerDirection } from '../domain/ledger';
 import { WagerKind, WagerStatus } from '../domain/wager-transaction';
 import { canonicalHash } from './canonical-hash';
+import {
+  createWagerEvent,
+  createWalletBalanceChangedEvent,
+  WagerEventType,
+} from '../domain/events/event-factory';
+import { IntegrationEvent } from '../domain/events/integration-event';
 import { MetricsService } from '../infrastructure/telemetry/metrics.service';
 import {
   InboxOrmEntity,
@@ -364,7 +370,7 @@ export class WagerProcessingService {
       referenceExpiresAt: new Date(now.getTime() + PENDING_REFERENCE_TTL_MS),
     });
     tx.persist(transaction);
-    this.enqueueEvent(tx, transactionId, 'WagerTransactionPendingReference', input, response);
+    this.enqueueWagerEvent(tx, transactionId, 'WagerTransactionPendingReference', input, response);
     return this.finishInbox(tx, context, response);
   }
 
@@ -592,7 +598,7 @@ export class WagerProcessingService {
         failureCode: 'REFERENCE_RETRY_EXHAUSTED',
       };
       pending.responseSnapshot = response as unknown as Record<string, unknown>;
-      this.enqueueEvent(tx, pending.id, 'WagerTransactionRejected', input, response);
+      this.enqueueWagerEvent(tx, pending.id, 'WagerTransactionRejected', input, response);
       return this.finishInbox(tx, context, response);
     }
     if (!reference) {
@@ -721,42 +727,59 @@ export class WagerProcessingService {
     }
     const eventType =
       status === WagerStatus.PROCESSED ? 'WagerTransactionProcessed' : 'WagerTransactionRejected';
-    this.enqueueEvent(tx, transactionId, eventType, input, response);
+    this.enqueueWagerEvent(tx, transactionId, eventType as WagerEventType, input, response);
     if (status === WagerStatus.PROCESSED && direction) {
-      this.enqueueEvent(tx, transactionId, 'WalletBalanceChanged', input, response);
+      this.enqueueBalanceChangedEvent(tx, transactionId, input, wallet, before, after, direction);
     }
     return this.finishInbox(tx, context, response);
   }
 
-  private enqueueEvent(
+  private enqueueWagerEvent(
     tx: EntityManager,
     transactionId: string,
-    eventType: string,
+    eventType: WagerEventType,
     input: SubmitInput,
     response: ProcessingResult,
   ): void {
+    const event = createWagerEvent(eventType, transactionId, input.externalTransactionId, {
+      transactionId,
+      status: response.status,
+      failureCode: response.failureCode,
+      money: input.money,
+    });
+    this.persistOutboxEvent(tx, event);
+  }
+
+  private enqueueBalanceChangedEvent(
+    tx: EntityManager,
+    transactionId: string,
+    input: SubmitInput,
+    wallet: WalletOrmEntity,
+    before: Money,
+    after: Money,
+    direction: LedgerDirection,
+  ): void {
+    const event = createWalletBalanceChangedEvent(transactionId, input.externalTransactionId, {
+      walletId: wallet.id,
+      transactionId,
+      direction,
+      money: input.money,
+      balanceBefore: before.toJSON(),
+      balanceAfter: after.toJSON(),
+      walletVersion: wallet.version,
+    });
+    this.persistOutboxEvent(tx, event);
+  }
+
+  private persistOutboxEvent(tx: EntityManager, event: IntegrationEvent<unknown>): void {
+    const payload = event.toJSON();
     tx.persist(
       tx.create(OutboxOrmEntity, {
         id: randomUUID(),
-        aggregateId: transactionId,
-        eventType,
+        aggregateId: payload.aggregateId,
+        eventType: payload.eventType,
         attempts: 0,
-        payload: {
-          eventId: randomUUID(),
-          eventType,
-          aggregateId: transactionId,
-          correlationId: input.externalTransactionId,
-          occurredAt: new Date().toISOString(),
-          version: 1,
-          data: {
-            transactionId,
-            status: response.status,
-            failureCode: response.failureCode,
-            money: input.money,
-            balance: response.balance,
-            referenceExternalTransactionId: input.referenceExternalTransactionId,
-          },
-        },
+        payload,
       }),
     );
   }

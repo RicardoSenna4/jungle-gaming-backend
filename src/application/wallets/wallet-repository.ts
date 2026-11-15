@@ -8,6 +8,10 @@ import { EntityManager } from '@mikro-orm/postgresql';
 import { randomUUID } from 'node:crypto';
 import { Money } from '../../domain/money';
 import {
+  createWagerEvent,
+  createWalletBalanceChangedEvent,
+} from '../../domain/events/event-factory';
+import {
   InboxOrmEntity,
   LedgerOrmEntity,
   OutboxOrmEntity,
@@ -116,6 +120,38 @@ export class WalletRepository {
               balanceAfter: initialBalance.toString(),
             }),
           );
+          const correlationId = `opening:${walletId}`;
+          const processed = createWagerEvent(
+            'WagerTransactionProcessed',
+            transactionId,
+            correlationId,
+            {
+              transactionId,
+              status: 'PROCESSED',
+              money: initialBalance.toJSON(),
+            },
+          );
+          const balanceChanged = createWalletBalanceChangedEvent(transactionId, correlationId, {
+            walletId,
+            transactionId,
+            direction: 'CREDIT',
+            money: initialBalance.toJSON(),
+            balanceBefore: { amount: '0.00', currency: initialBalance.currency },
+            balanceAfter: initialBalance.toJSON(),
+            walletVersion: wallet.version,
+          });
+          for (const event of [processed, balanceChanged]) {
+            const payload = event.toJSON();
+            tx.persist(
+              tx.create(OutboxOrmEntity, {
+                id: randomUUID(),
+                aggregateId: transactionId,
+                eventType: payload.eventType,
+                attempts: 0,
+                payload,
+              }),
+            );
+          }
         }
 
         await tx.flush();
@@ -153,17 +189,16 @@ export class WalletRepository {
     if (cursor) {
       const decoded = decodeLedgerCursor(cursor);
       params.push(decoded.createdAt, decoded.id);
-      cursorClause = ' and (created_at, id) < ($2::timestamptz, $3::uuid)';
+      cursorClause = ' and (created_at, id) < (?::timestamptz, ?::uuid)';
     }
     params.push(limit + 1);
-    const limitPosition = params.length;
     const rows = await this.em.getConnection().execute<LedgerRow[]>(
       `select id, wallet_id, transaction_id, direction, amount::text, currency,
               balance_before::text, balance_after::text, created_at
          from wallet_ledger_entries
-        where wallet_id = $1${cursorClause}
+        where wallet_id = ?${cursorClause}
         order by created_at desc, id desc
-        limit $${limitPosition}`,
+        limit ?`,
       params,
     );
     const hasNext = rows.length > limit;

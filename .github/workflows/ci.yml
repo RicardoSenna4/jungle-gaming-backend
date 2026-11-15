@@ -30,6 +30,7 @@ jobs:
       - run: docker compose up -d postgres localstack
       - run: docker compose ps
       - run: bun run db:migrate
+      - run: RUN_INTEGRATION=1 RUN_SQS_REAL=1 bun test test/integration/sqs-localstack.spec.ts
       - run: bun run db:rollback
       - if: always()
         run: docker compose logs --no-color

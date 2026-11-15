@@ -37,3 +37,32 @@ Publisher outbox validado contra PostgreSQL 16 real:
 - Validação corrente completa: 30 testes unitários aprovados, 25 integrações PostgreSQL aprovadas, 1 teste LocalStack pulado, 0 falhas. Typecheck, lint, build e format check aprovados.
 
 Durante a primeira execução dos novos testes, o SQL usava placeholders `$1` diretamente em `Connection.execute`; o MikroORM exige `?` posicionais. Os bindings foram corrigidos e os testes reais passaram. O teste end-to-end de SQS FIFO segue pendente porque não há Docker/LocalStack no sandbox; os resultados acima não o incluem.
+
+
+## Auditoria final — 2026-11-15
+
+Foram adicionados eventos concretos por meio de `src/domain/events/event-factory.ts`. O fluxo financeiro agora instancia as subclasses `WagerTransactionProcessed`, `WagerTransactionRejected`, `WagerTransactionPendingReference` e `WalletBalanceChanged`, serializando o envelope versionado na Outbox.
+
+OPENING positivo passou a persistir, no mesmo commit SQL da wallet, transação e ledger:
+
+- `WagerTransactionProcessed`;
+- `WalletBalanceChanged`;
+- `balanceBefore = 0.00`;
+- `balanceAfter` igual ao crédito inicial;
+- `walletVersion = 1`.
+
+Foi criado `test/integration/http-api.spec.ts`, que sobe o NestJS contra PostgreSQL e verifica DTOs, HTTP 400 para contrato inválido, criação e consulta de wallet, ledger, BET, replay idempotente, consulta por ID, consulta por provider/external ID, reconciliação, liveness, readiness e métricas.
+
+Foi corrigida a paginação do ledger para utilizar placeholders compatíveis com `Connection.execute` do MikroORM. O bug era observável como HTTP 500 em `GET /wallets/:walletId/ledger`.
+
+O teste `test/integration/outbox-publisher.spec.ts` agora inclui recuperação após uma falha equivalente a crash entre envio e gravação de `published_at`: a primeira tentativa falha depois do envio, o lease é liberado, a segunda tentativa publica/marca o evento e `attempts` permanece rastreável.
+
+Evidências executadas nesta etapa:
+
+- wallet persistence e OPENING: **6 aprovados**;
+- outbox publisher, incluindo crash-equivalent: **4 aprovados**;
+- HTTP API real: **2 aprovados**;
+- format, typecheck e lint: **aprovados**;
+- Docker/LocalStack local: **bloqueado**, pois `docker` não está instalado e `localhost:4566` está indisponível.
+
+O workflow `.github/workflows/ci.yml` foi alterado para executar `RUN_INTEGRATION=1 RUN_SQS_REAL=1 bun test test/integration/sqs-localstack.spec.ts` após subir PostgreSQL e LocalStack. A aprovação final do SQS end-to-end deve ser lida no workflow gerado por este commit.

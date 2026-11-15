@@ -86,7 +86,8 @@ describeIntegration('refund, rollback and out-of-order references', () => {
     expect(replay.idempotentReplay).toBe(true);
     expect(await em.count(LedgerOrmEntity, { walletId: wallet.id })).toBe(3);
     expect(await em.count(WagerTransactionOrmEntity, { kind: WagerKind.REFUND })).toBe(1);
-    expect(await em.count(OutboxOrmEntity, { eventType: 'WagerTransactionProcessed' })).toBe(2);
+    expect(await em.count(OutboxOrmEntity, { eventType: 'WagerTransactionProcessed' })).toBe(3);
+    expect(await em.count(OutboxOrmEntity, { eventType: 'WalletBalanceChanged' })).toBe(3);
   });
 
   it('processes ROLLBACK of WIN and rejects a second reversal of the same reference', async () => {

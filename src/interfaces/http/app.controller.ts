@@ -24,6 +24,7 @@ import {
 } from '../../application/wager-processing.service';
 import { HealthService } from '../../infrastructure/telemetry/health.service';
 import { MetricsService } from '../../infrastructure/telemetry/metrics.service';
+import { SubmitWagerRequestDto } from './dtos';
 
 @Controller()
 export class AppController {
@@ -39,13 +40,13 @@ export class AppController {
   @Post('wagering/transactions')
   submit(
     @Headers('idempotency-key') key: string | undefined,
-    @Body() body: SubmitInput,
+    @Body() body: SubmitWagerRequestDto,
     @Res({ passthrough: true }) response: Response,
   ) {
     if (!key) throw new BadRequestException({ errorCode: 'IDEMPOTENCY_KEY_REQUIRED' });
     const startedAt = Date.now();
     return this.service
-      .process(key, body)
+      .process(key, body as SubmitInput)
       .then((result) => {
         this.metrics.increment('wager_transactions_total', {
           source: 'http',
