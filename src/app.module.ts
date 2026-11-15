@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { AppController } from './interfaces/http/app.controller';
+import { ChallengeProviderIdentityGuard } from './interfaces/http/provider-identity.guard';
 import { WagerProcessingService } from './application/wager-processing.service';
 import { WalletRepository } from './application/wallets/wallet-repository';
 import { WalletService } from './application/wallets/wallet-service';
@@ -26,6 +27,7 @@ import { MetricsService } from './infrastructure/telemetry/metrics.service';
     SqsInfrastructureClient,
     HealthService,
     MetricsService,
+    ChallengeProviderIdentityGuard,
   ],
 })
 export class AppModule {}
