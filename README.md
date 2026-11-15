@@ -1,54 +1,78 @@
 # Jungle Distributed Wagering Processor
 
-Implementação do desafio técnico Jungle Gaming. O enunciado original está preservado em [`CHALLENGE_SPEC.md`](./CHALLENGE_SPEC.md).
+Implementação do desafio técnico **Jungle Gaming — Distributed Wagering Processor**.
+O [enunciado original](CHALLENGE_SPEC.md) permanece preservado.
 
-## Implementado
+**Stack:** Bun 1.1.38 · TypeScript strict · NestJS · MikroORM · PostgreSQL 16 · AWS SQS (LocalStack) · Docker Compose.
 
-- Bun 1.1.38, NestJS, TypeScript estrito, MikroORM e PostgreSQL como única estratégia ORM/migration ativa.
-- `Money` imutável com `decimal.js`, entrada/saída decimal em string, duas casas fixas e moeda explícita.
-- Wallet com unicidade por jogador/moeda, saldo não negativo, lock pessimista por wallet, crédito `OPENING` e ledger append-only na mesma transação.
-- OPENING positivo também grava `WagerTransactionProcessed` e `WalletBalanceChanged` na Outbox, com saldo anterior, saldo posterior e versão da wallet.
-- BET, WIN, LOSS, REFUND e ROLLBACK com idempotência persistente, hash canônico, replay do snapshot original e validação das referências.
-- Referências fora de ordem em `PENDING_REFERENCE`, retry com backoff/TTL e worker agendado.
-- Consumer SQS FIFO com Inbox persistente, DLQ via redrive policy, reutilização do caso de uso financeiro, ack após commit e graceful shutdown.
-- Outbox transacional e publisher SQS concorrente: reclamação em lotes com `FOR UPDATE SKIP LOCKED`, lease/token por claim, envio fora da transação, backoff exponencial e entrega at-least-once.
-- Endpoints HTTP para wallets, ledger paginado, transações por ID/referência externa, submissão, reconciliação, health liveness/readiness e métricas Prometheus.
-- Reconciliação em uma consulta consistente, com comparação saldo materializado versus créditos menos débitos; divergências são sinalizadas e nunca corrigidas automaticamente.
-- Logs JSON de processamento sem payload monetário, contadores de negócio/filas/retries e gauges de backlog/outbox/DLQ.
-- Eventos de integração são instanciados por subclasses concretas e serializados com versão; DTOs HTTP validam campos, moeda, escala decimal e tipos de operação.
+## Comece aqui — ambiente reproduzível
 
-A autenticação não foi implementada, como permitido pelo desafio; endpoints e canal de mensagem permanecem sem autenticação nesta entrega. Em produção, a identidade do provedor deve ser validada por um IdP OIDC externo.
+**Opção A — aplicação e infraestrutura em Docker Compose:**
 
-## Executar localmente
+```bash
+docker compose up --build -d
+docker compose ps
+curl http://localhost:3000/health/live
+curl http://localhost:3000/health/ready
+```
 
-Requisitos: Bun 1.1.38, Docker Compose, PostgreSQL 16 e LocalStack SQS.
+O serviço `api` aplica as migrations no início e ativa consumer, outbox e worker de referências.
+Aguarde o PostgreSQL e a inicialização das filas do LocalStack. Este ambiente é **apenas de desenvolvimento**; credenciais locais `test` e `postgres` não são adequadas para produção.
+
+**Opção B — aplicação no host com Bun, infraestrutura no Compose:**
 
 ```bash
 cp .env.example .env
 bun install --frozen-lockfile
 docker compose up -d postgres localstack
 bun run db:migrate
+bun run build
 ENABLE_SQS_CONSUMER=true ENABLE_OUTBOX_PUBLISHER=true bun run start:bun
 ```
 
-O consumer e o publisher são opt-in. O worker de referências pendentes inicia por padrão e pode ser desligado com `ENABLE_PENDING_REFERENCE_WORKER=false`. O publisher envia eventos à fila `wager-events.fifo`; não há exactly-once entre PostgreSQL e SQS. Cada envelope contém `eventId`, e consumidores downstream devem deduplicar.
+Use a Opção A **ou** a Opção B, não duas aplicações na porta 3000 ao mesmo tempo.
 
-## Endpoints principais
+## Arquitetura e garantias financeiras
 
-- `POST /wallets`, `GET /wallets/:walletId`
-- `GET /wallets/:walletId/ledger?cursor=...&limit=50`
-- `POST /wallets/:walletId/reconciliation`
-- `POST /wagering/transactions` (requer `Idempotency-Key`)
-- `GET /wagering/transactions/:transactionId`
-- `GET /providers/:providerId/wagering/transactions/:externalTransactionId`
-- `GET /health/live`, `GET /health/ready`
-- `GET /metrics` (formato Prometheus; métricas por processo)
+- Dinheiro imutável, string decimal com duas casas, aritmética `decimal.js` e persistência exata `NUMERIC(20,2)`; nunca `number` para montantes.
+- A wallet é a unidade de concorrência: bloqueio `SELECT FOR UPDATE` por linha, sem lock global.
+- `BET` debita, `WIN` credita e `LOSS` não altera saldo ou ledger. `REFUND` e `ROLLBACK` validam referência, moeda, valor integral e contexto.
+- Índices únicos persistentes e hash SHA-256 canônico protegem idempotência; replay devolve o saldo observado na operação original.
+- Crédito `OPENING` e cada movimento de saldo possuem lançamento no ledger. O PostgreSQL impede UPDATE/DELETE no ledger por trigger.
+- Entrada SQS via Inbox transacional; ACK somente após commit, com redelivery, backoff e DLQ.
+- Eventos são gravados na mesma transação SQL e publicados depois por Outbox, com `FOR UPDATE SKIP LOCKED`, leases e `eventId`. A garantia é **at-least-once**, não exactly-once.
+- Referências ausentes ficam `PENDING_REFERENCE` e um worker as resolve ou rejeita por TTL/limite de tentativas.
+- Reconciliação detecta diferenças entre saldo armazenado e soma do ledger; não corrige silenciosamente.
 
-`/health/live` verifica apenas o processo. `/health/ready` retorna 503 se PostgreSQL ou as filas de comandos/eventos SQS não estiverem acessíveis.
+[Decisões arquiteturais](ARCHITECTURE.md) · [Recuperação de falhas](docs/FAILURE_RECOVERY.md) · [Matriz oficial de requisitos](docs/REQUIREMENTS_TRACEABILITY.md)
+
+## Endpoints
+
+| Método | Rota | Finalidade |
+|---|---|---|
+| POST | `/wallets` | Criação e crédito inicial |
+| GET | `/wallets/:walletId` | Consulta de saldo/version |
+| GET | `/wallets/:walletId/ledger?limit=50&cursor=...` | Ledger com cursor opaco |
+| POST | `/wagering/transactions` | Envio financeiro; requer `Idempotency-Key` |
+| GET | `/wagering/transactions/:transactionId` | Consulta por ID interno |
+| GET | `/providers/:providerId/wagering/transactions/:externalTransactionId` | Consulta pela identidade no provedor |
+| POST | `/wallets/:walletId/reconciliation` | Comparação materializado/ledger |
+| GET | `/health/live` | Liveness |
+| GET | `/health/ready` | PostgreSQL e SQS disponíveis |
+| GET | `/metrics` | Prometheus por instância |
+
+**Exemplo BET:**
+
+```bash
+curl -X POST http://localhost:3000/wagering/transactions \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: provider-a:bet-1' \
+  -d '{"providerId":"provider-a","externalTransactionId":"bet-1","playerId":"SEU_PLAYER_ID","walletId":"UUID_DA_WALLET","roundId":"round-1","gameId":"game-1","kind":"BET","money":{"amount":"25.00","currency":"BRL"}}'
+```
+
+Crie a wallet primeiro via `POST /wallets` e substitua os marcadores pelos dados retornados e pelo `playerId` escolhido.
 
 ## Qualidade e testes
-
-`test:unit` não exige serviços externos. Os demais testes de integração precisam do PostgreSQL e/ou LocalStack iniciados; o executor configura as flags de integração, grava JUnit/logs em `.test-results/` e falha caso qualquer teste obrigatório seja pulado ou nenhuma execução seja reportada. O inventário de specs é descoberto recursivamente e comparado ao registro explícito; arquivos ausentes, não registrados ou duplicados bloqueiam o gate.
 
 ```bash
 bun run typecheck
@@ -64,10 +88,44 @@ bun run test:all
 bun run db:migration:check
 ```
 
-`bun run test` é um alias de `bun run test:all`. O workflow do GitHub Actions inicia PostgreSQL e LocalStack no runner descartável, aguarda as três filas, aplica migrations, executa a suíte completa serialmente entre arquivos, reverte cada migration e reaplica a cadeia. O paralelismo dentro dos cenários de concorrência continua ativo. Os resultados JUnit e logs são publicados como artefato do workflow.
+Para as integrações, inicie PostgreSQL e LocalStack antes dos testes e aplique as migrations.
+Os scripts isolam suítes que usam TRUNCATE e recusam relatórios JUnit com **zero testes ou skips**.
+A CI executa os mesmos comandos em runner descartável, incluindo LocalStack real,
+concorrência multiprocessos e rollback da cadeia de migrations.
 
-No snapshot-base `688ba47`, a execução Actions do comando genérico reportou 30 pass e 29 skip; por isso, os relatos locais anteriores não são tratados como aprovação da suíte no CI desse SHA. Nesta branch, a execução completa do workflow ainda deve ser confirmada antes de declarar o gate aprovado. O sandbox de desenvolvimento não tem Docker (`docker: command not found`), então PostgreSQL/LocalStack reais serão validados pelo runner GitHub, não por mocks locais.
+**Acompanhe o SHA enviado**, não apenas um badge verde de commit anterior:
+[GitHub Actions](https://github.com/RicardoSenna4/jungle-gaming-backend/actions).
+Os resultados, limitações e como reproduzi-los estão em [TESTING.md](docs/TESTING.md).
 
-## Migrations
+## Cenários de avaliação prioritários
 
-As migrations MikroORM são versionadas e reversíveis em `src/infrastructure/database/migrations`. A migration `Migration20261114140000` adiciona token/índices de claim do publisher sem editar migrations já aplicadas. O código legado TypeORM foi removido para evitar duas fontes de schema e comandos concorrentes de migration.
+1. Wallet 100.00 + duas BETs concorrentes de 80.00: uma PROCESSSED, uma REJECTED, saldo 20.00, um débito.
+2. 50 reenvios simultâneos idênticos: uma única movimentação e 49 replays.
+3. Três processos independentes sobre uma wallet e wallets diferentes em paralelo.
+4. REFUND/ROLLBACK concorrentes, fora de ordem e com saldo insuficiente.
+5. Worker reiniciado depois do commit/pré-ACK; Inbox mantém uma única movimentação.
+6. Commit financeiro seguido de queda antes do publish; Outbox recupera o evento.
+7. Ledger append-only, migrations, health, métricas e reconciliação.
+
+As assertions e o status de execução por cenário estão detalhados em [TESTING.md](docs/TESTING.md) e na [matriz de rastreabilidade](docs/REQUIREMENTS_TRACEABILITY.md).
+
+## Autenticação e limitações declaradas
+
+O desafio **permite não implementar autenticação**. A aplicação não possui validação OIDC;
+`ChallengeProviderIdentityGuard` é um ponto de extensão **no-op explícito**, não um mecanismo de segurança.
+Em produção seria necessário IdP externo, autorização e validação de identidade do provedor.
+Health permanece público. Mensagens SQS usam canal interno confiável, com validação de envelope/provedor.
+
+A entrega não é produção: não inclui gestão de segredos, operação em AWS real,
+deduplicador downstream de produção, observabilidade centralizada nem provisionamento de alta disponibilidade.
+Consulte [limitações e verificações pendentes](docs/OPEN_ISSUES.md).
+
+## Outros documentos
+
+- [Arquitetura e trade-offs](ARCHITECTURE.md)
+- [Matriz de requisitos e testes](docs/REQUIREMENTS_TRACEABILITY.md)
+- [Testes e evidências](docs/TESTING.md)
+- [Falhas e recuperação](docs/FAILURE_RECOVERY.md)
+- [ADRs](docs/02_ADR_REGISTER.md)
+- [Checklist de entrega](docs/DELIVERY_CHECKLIST.md)
+- [Enunciado original](CHALLENGE_SPEC.md)

@@ -1,34 +1,112 @@
-# Arquitetura e estado da implementação
+# ARCHITECTURE — Jungle Distributed Wagering Processor
 
-## Stack e limites
+## 1. Desenho
 
-A aplicação é um monólito modular NestJS em Bun/TypeScript, com MikroORM e PostgreSQL. MikroORM é a única estratégia ativa de mapeamento e migrations. O código TypeORM legado foi removido para evitar caminhos divergentes de persistência. O domínio monetário recebe e serializa strings decimais com escala fixa de duas casas; `decimal.js` é usado para aritmética. Nenhum valor monetário passa por `number`.
+Monólito modular NestJS/TypeScript em Bun com PostgreSQL/MikroORM e SQS via LocalStack.
+O serviço HTTP e o consumer da fila chamam o mesmo `WagerProcessingService`, preservando
+uma única política financeira. As regras monetárias ficam em classes de domínio;
+transações SQL, claims, índices e redelivery são responsabilidade da infraestrutura.
 
-Autenticação está fora do escopo implementado, conforme permitido pelo enunciado. Os endpoints HTTP não estão autenticados e a fila é tratada como canal interno confiável; antes de produção, integrar IdP OIDC e validar identidade/allowlist de cada provedor.
+```mermaid
+flowchart LR
+  HTTP[HTTP API] --> USE[WagerProcessingService]
+  SQS[wager-transactions.fifo] --> CON[Consumer + Inbox]
+  CON --> USE
+  USE --> SQL[(PostgreSQL: Wallet + Tx + Ledger + Inbox + Outbox)]
+  PEN[Pending-reference worker] --> USE
+  SQL --> PUB[Outbox publisher]
+  PUB --> EV[wager-events.fifo]
+```
 
-## Consistência financeira
+## 2. Money e invariantes
 
-A wallet é a unidade de concorrência. O caso de uso bloqueia a linha da wallet com `SELECT ... FOR UPDATE`, valida contexto/moeda/saldo e persiste transação, alteração de saldo, ledger, outbox e Inbox (quando aplicável) dentro da mesma transação SQL. Índices únicos, `CHECK(balance >= 0)`, checks aritméticos do ledger e trigger append-only protegem invariantes no PostgreSQL. Wallets diferentes não compartilham lock global.
+- `Money` recebe e serializa `{amount: string, currency: string}` com duas casas;
+  `Decimal.clone({precision:40})` evita arredondamento antes dos checks do banco.
+- Colunas `NUMERIC(20,2)` com checks protegem valores armazenados. A aplicação
+  valida operações de moedas diferentes e rejeita entrada negativa/escala irregular.
+- Wallet única por `(player_id,currency)`, `version=1` na criação, incremento somente
+  quando o saldo muda. Saldo inicial positivo cria `OPENING` + ledger em um commit.
+- Cada movimento tem um ledger imutável, com constraint aritmética,
+  índice único wallet/transaction e trigger contra UPDATE/DELETE.
+- Ao executar um movimento, o caso de uso reidrata `Wallet`, aplica débito/crédito
+  e constrói `WalletLedgerEntry`, em vez de confiar apenas no ORM.
 
-A idempotência durável é por `(providerId, idempotencyKey)` e `(providerId, externalTransactionId)`. O payload de negócio é canonizado e hasheado em SHA-256. Reuso da chave com hash diferente é conflito; replay idêntico devolve o snapshot salvo sem repetir efeitos. O saldo inicial positivo cria `OPENING` e um crédito de ledger atomicamente.
+## 3. Atomicidade e concorrência
 
-## Mensageria e recuperação
+A unidade de serialização é a wallet: `SELECT FOR UPDATE` dentro de
+`EntityManager.transactional()`. O mesmo commit engloba identidade da transação,
+saldo, ledger, Inbox (SQS) e Outbox. Índices únicos são a garantia final de deduplicação.
 
-O consumer da fila `wager-transactions.fifo` usa Inbox única por `(consumerName,messageId)` e chama o mesmo `WagerProcessingService` do HTTP. A confirmação SQS ocorre somente após o commit SQL. A redrive policy da fila de comandos encaminha mensagens que não podem ser confirmadas para `wager-transactions-dlq.fifo`. O shutdown interrompe polling e drena operações em andamento.
+Existem chaves únicas para `(provider_id,idempotency_key)` e
+`(provider_id,external_transaction_id)`; JSON canônico de campos de negócio
+gera `payloadHash` SHA-256. Payload diferente na mesma chave => conflito.
+O snapshot persistido permite devolver saldo original em replay.
+O caso de uso faz nova consulta idempotente **após adquirir o lock da wallet**
+para não transformar concorrência legítima em `EXTERNAL_TRANSACTION_EXISTS`.
 
-Eventos são inseridos na Outbox na transação financeira. `OutboxPublisherWorker` seleciona lotes com `FOR UPDATE SKIP LOCKED`, define `claim_token` e lease, publica fora da transação na fila `wager-events.fifo` e só então marca `published_at`. Falhas liberam a lease e agendam retry exponencial limitado a cinco minutos entre tentativas. Se o processo cair depois do envio e antes da marcação SQL, o evento pode ser reenviado; o contrato é at-least-once e consumidores devem deduplicar por `eventId`.
+## 4. Regras de aposta
 
-Referências de REFUND/ROLLBACK ausentes ficam em `PENDING_REFERENCE`; o worker reprocessa com backoff e TTL/limite de tentativas. A expiração persiste rejeição auditável, evento e failure code sem mover saldo.
+`BET` debita e rejeita falta de saldo; `WIN` credita; `LOSS` registra resultado
+sem ledger/version. `REFUND` referencia apenas BET processada;
+`ROLLBACK` referencia BET, WIN ou REFUND processada e inverte o lançamento.
+Contexto exige mesmo provedor, player, wallet, moeda e rodada, com valor integral.
+Uma reversão econômica direta por referência (ADR-013) impede crédito duplo.
+Reversões que provocariam saldo negativo são REJECTED com código próprio.
 
-## Consultas, saúde e observabilidade
+`PENDING_REFERENCE` é reprocessada em worker periódico com backoff e TTL;
+limite de tentativas/TTL leva a rejeição auditável e evento.
+O `FAILED` representa estado terminal do contrato de domínio, mas quedas de DB
+sem commit não podem ser registradas falsamente como transação financeira confirmada.
+Mensagens incapazes de confirmar commit seguem a política de retry/DLQ.
 
-O ledger é consultável por cursor estável e opaco. A reconciliação compara, em uma única consulta PostgreSQL, o saldo materializado com a soma de créditos menos débitos e o número de lançamentos verificados. Ela retorna divergências e não corrige saldo automaticamente.
+## 5. SQS e Inbox
 
-`/health/live` reporta somente a vida do processo. `/health/ready` testa a conexão PostgreSQL e as filas SQS de comando e evento, retornando 503 se alguma dependência estiver indisponível. `/metrics` expõe contadores, gauges e histogramas no formato Prometheus por processo; o Prometheus deve agregar instâncias. Os logs de processamento são JSON e não incluem payload monetário.
+`wager-transactions.fifo` recebe comandos;
+`wager-transactions-dlq.fifo` recebe mensagens após redrive.
+O consumer valida contrato, grava Inbox por `(consumerName,messageId)` na
+transação financeira e só envia `DeleteMessage` após o commit.
+Erros não confirmados retornam à fila por visibilidade com backoff exponencial;
+o redrive do broker decide a DLQ. O polling controla tarefas em voo;
+shutdown impede novos receives e aguarda as tarefas em curso.
 
-## Validação atual
+## 6. Outbox e eventos
 
-- Typecheck, lint, format check, build e migrations MikroORM: aprovados; migration check sem pendências.
-- 30 testes unitários aprovados.
-- 25 testes de integração PostgreSQL aprovados, inclusive concorrência `SKIP LOCKED` entre publishers e divergência detectada pela reconciliação.
-- 1 teste end-to-end LocalStack SQS ficou pulado. Docker/LocalStack não estão disponíveis neste sandbox, então esse gate permanece pendente e não é tratado como aprovado.
+Eventos exigidos: `WagerTransactionProcessed`, `WagerTransactionRejected`,
+`WagerTransactionPendingReference`, `WalletBalanceChanged`.
+São subclasses de `IntegrationEvent`, com `eventType`, `version`, `eventId`,
+correlação e `MoneyProps` JSON. Nenhum evento é publicado antes de commit.
+O publisher reclama linhas com `FOR UPDATE SKIP LOCKED`, token/lease, envia
+fora da transação e marca `published_at` somente após `SendMessage`.
+O contrato é **at-least-once**; consumidores downstream precisam deduplicar por
+`eventId`, pois crash após envio e antes da marca SQL pode gerar reenvio.
+
+## 7. HTTP, autenticação e observabilidade
+
+Endpoints conforme README; `Idempotency-Key` obrigatório.
+400 inválido, 409 conflito, 422 rejeição de negócio (inclusive replay rejeitado),
+202 referência pendente, 404 inexistente e 503 dependência indisponível.
+Cursor do ledger preserva timestamp PostgreSQL até microssegundos e valida formato/UUID.
+
+Autenticação OIDC foi deixada fora do escopo pontuado;
+`ChallengeProviderIdentityGuard` é um ponto de extensão no-op, sem fornecer segurança real.
+Na produção substituir por validação JWT/IdP, vincular identidade ao provedor e restringir recursos.
+
+Logger emite uma linha JSON por evento com whitelist de campos operacionais,
+sem payload financeiro completo/segredos. `/metrics` expõe métricas por instância,
+`/health/live` responde ao processo e `/health/ready` verifica PG + SQS.
+Reconciliação compara saldo materializado e ledger em consulta consistente,
+com log/métrica de divergência e nenhuma correção silenciosa.
+
+## 8. Trade-offs e limites
+
+- Monólito modular mantém transação financeira SQL única; microserviços exigiriam
+  protocolos adicionais de consistência sem benefício para o desafio.
+- Lock pessimista reduz throughput de uma wallet quente, mas não bloqueia wallets diferentes.
+- SQS FIFO auxilia ordenação/duplicatas, mas não substitui índices SQL nem Inbox.
+- Autenticação real, dashboards, AWS real, testes de carga e observabilidade distribuída
+  são opcionais ou externos ao escopo pontuado; não afirmar que foram implementados.
+- Runner de CI usa PostgreSQL/LocalStack reais e testes por arquivo em série por causa
+  de TRUNCATE dos fixtures; paralelismo **dentro** do teste distribuído é real.
+
+Consulte [testes](docs/TESTING.md), [falhas e recuperação](docs/FAILURE_RECOVERY.md),
+[ADRs](docs/02_ADR_REGISTER.md) e [rastreabilidade](docs/REQUIREMENTS_TRACEABILITY.md).
