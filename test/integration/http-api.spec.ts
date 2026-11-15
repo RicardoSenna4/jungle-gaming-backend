@@ -230,7 +230,7 @@ describeIntegration('HTTP API contracts', () => {
       expect((await request('/health/live')).status).toBe(200);
       const ready = await request('/health/ready');
       expect(ready.status).toBe(503);
-      expect(ready.body).toHaveProperty('statusCode',503);
+      expect(ready.body).toHaveProperty('status','error');
     } finally {
       if (previous === undefined) delete process.env.SQS_QUEUE_URL;
       else process.env.SQS_QUEUE_URL = previous;
