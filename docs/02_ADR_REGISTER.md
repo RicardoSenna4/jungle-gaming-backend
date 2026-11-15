@@ -1,7 +1,7 @@
 # Registro de ADRs — Jungle Gaming Backend Challenge
 
 **Data da decisão:** 2026-11-13
-**Escopo:** planejamento arquitetural; nenhuma ADR abaixo representa código já validado.
+**Escopo:** decisões arquiteturais históricas de 13/11/2026. A implementação e as evidências atualizadas estão na [matriz de requisitos](REQUIREMENTS_TRACEABILITY.md) e nos [testes](TESTING.md). A aceitação de uma ADR não prova, isoladamente, que o requisito foi testado.
 
 | ADR | Tema | Estado | Decisão | Requisitos |
 |---|---|---|---|---|
@@ -80,4 +80,4 @@
 
 ## Gates
 
-Estas decisões são de planejamento. A implementação deve adicionar testes RED/GREEN e atualizar cada ADR com evidência de comando, exit code, ambiente e commit. Nenhuma decisão substitui requisito explícito do README oficial.
+Estas decisões não substituem o enunciado nem os resultados de testes. Para a implementação verificada, consulte [rastreabilidade](REQUIREMENTS_TRACEABILITY.md), [auditoria](FINAL_DELIVERY_AUDIT.md) e [GitHub Actions](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/workflows/ci.yml).

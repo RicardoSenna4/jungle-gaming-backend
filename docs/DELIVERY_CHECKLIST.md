@@ -20,9 +20,9 @@
 | G14 | HTTP, cursor, status, extensão auth | PASS | http-api, ledger-pagination, provider-identity.guard |
 | G15 | JSON logs, métricas, health, reconciliação | PASS | json-logger, metrics, health, http-api |
 | G16 | CI do código executa todos os testes sem skips e smoke container | PASS | [Actions #43763470242](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43763470242) |
-| G17 | README, arquitetura e evidências consistentes | PASS documentação | README, ARCHITECTURE, docs |
+| G17 | README, arquitetura e evidências consistentes | PASS documentação | [README](../README.md), [API](API.md), [DEMO](DEMO.md), [rastreabilidade](REQUIREMENTS_TRACEABILITY.md) |
 | G18 | Sem segredos reais, review e instalação limpa | PENDENTE HOMOLOGAÇÃO | Conferir histórico + smoke local |
-| G19 | Acesso do avaliador ao repositório privado | PENDENTE HUMANO | Confirmar permissões |
+| G19 | Visibilidade e acesso dos avaliadores | PENDENTE HUMANO | Repositório consultado como público; confirmar se essa visibilidade foi autorizada e se atende às regras do processo seletivo |
 | G20 | Revisão final e submissão ao recrutador | PENDENTE HUMANO | Confirmação do proprietário |
 
 ## Para você executar antes de enviar
@@ -32,8 +32,8 @@
 - [ ] Executar SQS redelivery/DLQ e matar/reiniciar o consumer **em ambiente de teste**, sem alterar dados reais.
 - [ ] Reiniciar o publisher com outbox pendente, acompanhar eventos e `eventId`.
 - [ ] Conferir que nenhum segredo aparece no histórico, logs ou arquivos.
-- [ ] Confirmar que os avaliadores podem ler o repositório (atualmente privado).
+- [ ] Confirmar se a visibilidade **pública** atual do repositório foi autorizada, se atende às regras da Jungle Gaming e se o avaliador consegue visualizar o conteúdo sem login.
 - [ ] Confirmar prazo/formato/regras sobre IA com a Jungle Gaming.
 - [ ] Ler README e arquitetura e revisar os commits antes da submissão.
 
-**Não declarar entrega 100% concluída** até todos os passos humanos serem realizados.
+**Não declarar entrega 100% concluída** até todos os passos humanos serem realizados. A presença de checks vermelhos em commits anteriores representa o histórico real; a comprovação da entrega é o CI do SHA final.

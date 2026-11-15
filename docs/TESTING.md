@@ -44,6 +44,11 @@ a partir de outro ou de relatórios históricos.
 
 ### CI
 
+**Evidências em links diretos:** [CI](../.github/workflows/ci.yml), [runner de 12 alvos](../scripts/test-suite-runner.ts), [concorrência real](../test/integration/concurrency.spec.ts), [SQS/LocalStack](../test/integration/sqs-localstack.spec.ts), [crash/restart em Compose](../scripts/smoke-compose.ts) e [última execução integral verificada no SHA 6f0f76b](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43767143661). Os relatórios de cada alvo ficam nos artefatos da execução do Actions.
+
+As falhas em **commits intermediários** não tornam o HEAD automaticamente inválido nem devem ser apagadas para mascarar tentativas anteriores. Sempre confira o resultado **do commit submetido**; o badge da main pode mudar após novos commits.
+
+
 Na execução [#43763470242](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43763470242), correspondente ao commit `09acbd3be159acd482cd88e9814a105f8e29a45d`, passaram 80 testes sem skips (12 alvos) e o smoke real da aplicação. O script `smoke:compose` **derruba e reinicia o serviço `api`** e consome mensagens da fila de eventos local; nunca execute em sistemas compartilhados ou em produção. O job primeiro sobe os serviços, aplica migrations e roda os testes; em seguida inicia a API e verifica operações HTTP/SQS e persistência após SIGKILL/SIGTERM.
 
 

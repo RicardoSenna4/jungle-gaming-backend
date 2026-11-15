@@ -22,7 +22,7 @@ requisito obrigatório ou falha eliminatória.
 - **Testes de carga:** diferencial opcional; não declarar RPS ou percentis
   p95/p99 sem ensaio válido. Concorrência funcional obrigatória não é benchmark.
 - **Checklist humano:** clonar em máquina do proprietário, conferir permissões
-  da banca no repositório privado, revisar PR e enviar submissão no canal oficial.
+  da banca considerando a visibilidade pública atual, revisar os commits e enviar a submissão no canal oficial.
   Esses itens não podem ser concluídos automaticamente pelo agente.
 
 Registrar aqui quaisquer falhas reais remanescentes após a execução do CI

@@ -43,8 +43,7 @@ não possuem commits exclusivos pendentes de merge.
 **Aprovação do CI não significa que todos os cenários de desastre já foram reproduzidos.** O smoke executou SIGKILL/SIGTERM da API e reinício real, mas não forçou interrupção no instante pós-publicação/pré-marcação da outbox nem durante um ACK em voo. Falhas de rede e reinicialização sob carga seguem como exercícios adicionais. A avaliação
 do recrutador também não foi realizada aqui.
 
-**Somente o proprietário pode** revisar condições do processo seletivo, aprovar
-visibilidade/acesso da banca, testar uma instalação limpa na sua máquina,
+**Somente o proprietário pode** revisar condições do processo seletivo, confirmar que a visibilidade pública atual é apropriada, testar uma instalação limpa na sua máquina,
 inspecionar o comportamento fim a fim e submeter o projeto.
 
 Veja [DELIVERY_CHECKLIST.md](DELIVERY_CHECKLIST.md), [TESTING.md](TESTING.md)
