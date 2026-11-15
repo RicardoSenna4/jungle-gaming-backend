@@ -1,4 +1,32 @@
 services:
+  api:
+    build: .
+    ports:
+      - '3000:3000'
+    environment:
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: jungle
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      SQS_ENDPOINT: http://localstack:4566
+      SQS_QUEUE_URL: http://localstack:4566/000000000000/wager-transactions.fifo
+      SQS_DLQ_QUEUE_URL: http://localstack:4566/000000000000/wager-transactions-dlq.fifo
+      SQS_EVENTS_QUEUE_URL: http://localstack:4566/000000000000/wager-events.fifo
+      ENABLE_SQS_CONSUMER: 'true'
+      ENABLE_OUTBOX_PUBLISHER: 'true'
+      ENABLE_PENDING_REFERENCE_WORKER: 'true'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    command: ['sh', '-lc', 'bun run db:migrate && bun run start:bun']
+
   postgres:
     image: postgres:16-alpine
     environment:

@@ -9,7 +9,8 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
  */
 @Injectable()
 export class ChallengeProviderIdentityGuard implements CanActivate {
-  canActivate(_context: ExecutionContext): boolean {
+  canActivate(context: ExecutionContext): boolean {
+    void context;
     return true;
   }
 }

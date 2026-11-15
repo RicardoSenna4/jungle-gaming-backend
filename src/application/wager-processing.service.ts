@@ -3,6 +3,10 @@ import { EnsureRequestContext, LockMode } from '@mikro-orm/core';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { randomUUID } from 'node:crypto';
 import { Money } from '../domain/money';
+import { Wallet } from '../domain/wallet';
+import { WalletLedgerEntry } from '../domain/ledger';
+import { WagerTransaction } from '../domain/wager-transaction';
+import { FailureCode } from '../domain/failure-code';
 import { LedgerDirection } from '../domain/ledger';
 import { WagerKind, WagerStatus } from '../domain/wager-transaction';
 import { canonicalHash } from './canonical-hash';
@@ -715,6 +719,28 @@ export class WagerProcessingService {
     existingTransaction?: WagerTransactionOrmEntity,
   ): Promise<ProcessingResult> {
     const transactionId = existingTransaction?.id ?? randomUUID();
+    const domainTransaction = existingTransaction
+      ? WagerTransaction.rehydrate({
+          id: transactionId, providerId: input.providerId,
+          externalTransactionId: input.externalTransactionId,
+          idempotencyKey, payloadHash, walletId: wallet.id, playerId: input.playerId,
+          roundId: input.roundId, gameId: input.gameId, kind: input.kind, money,
+          referenceExternalTransactionId: input.referenceExternalTransactionId,
+          createdAt: existingTransaction.createdAt ?? new Date(),
+          status: existingTransaction.status as WagerStatus,
+          referenceTransactionId: existingTransaction.referenceTransactionId,
+          failureCode: existingTransaction.failureCode as FailureCode | undefined,
+          processedAt: existingTransaction.processedAt,
+        })
+      : WagerTransaction.create({
+          id: transactionId, providerId: input.providerId,
+          externalTransactionId: input.externalTransactionId,
+          idempotencyKey, payloadHash, walletId: wallet.id, playerId: input.playerId,
+          roundId: input.roundId, gameId: input.gameId, kind: input.kind, money,
+          referenceExternalTransactionId: input.referenceExternalTransactionId,
+        });
+    if (status === WagerStatus.PROCESSED) domainTransaction.markProcessed(referenceTransactionId);
+    else if (status === WagerStatus.REJECTED) domainTransaction.reject(failureCode as FailureCode);
     const transaction =
       existingTransaction ??
       tx.create(WagerTransactionOrmEntity, {
@@ -738,13 +764,11 @@ export class WagerProcessingService {
         processedAt: new Date(),
         referenceAttempts: 0,
       });
-    if (existingTransaction) {
-      existingTransaction.status = status;
-      existingTransaction.referenceTransactionId = referenceTransactionId;
-      existingTransaction.failureCode = failureCode;
-      existingTransaction.processedAt = new Date();
-      existingTransaction.referenceNextAttemptAt = undefined;
-    }
+    transaction.status = domainTransaction.status;
+    transaction.referenceTransactionId = domainTransaction.referenceTransactionId;
+    transaction.failureCode = domainTransaction.failureCode;
+    transaction.processedAt = domainTransaction.processedAt;
+    if (existingTransaction) existingTransaction.referenceNextAttemptAt = undefined;
     const response: ProcessingResult = {
       transactionId,
       status,
@@ -756,11 +780,24 @@ export class WagerProcessingService {
     tx.persist(transaction);
     await tx.flush();
     if (status === WagerStatus.PROCESSED && direction) {
-      wallet.balance = after.toString();
-      wallet.version += 1;
+      const domainWallet = Wallet.rehydrate({
+        id: wallet.id, playerId: wallet.playerId, currency: wallet.currency,
+        balance: before, version: wallet.version,
+        createdAt: wallet.createdAt ?? new Date(), updatedAt: wallet.updatedAt ?? new Date(),
+      });
+      if (direction === LedgerDirection.DEBIT) domainWallet.debit(money);
+      else domainWallet.credit(money);
+      if (!domainWallet.balance.equals(after)) throw new Error('WALLET_LEDGER_DIVERGENCE');
+      const ledgerId = randomUUID();
+      WalletLedgerEntry.create({
+        id: ledgerId, walletId: wallet.id, transactionId,
+        direction, money, balanceBefore: before, balanceAfter: domainWallet.balance,
+      });
+      wallet.balance = domainWallet.balance.toString();
+      wallet.version = domainWallet.version;
       tx.persist(
         tx.create(LedgerOrmEntity, {
-          id: randomUUID(),
+          id: ledgerId,
           walletId: wallet.id,
           transactionId,
           direction,
