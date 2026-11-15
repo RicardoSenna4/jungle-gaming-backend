@@ -1,147 +1,125 @@
-# Jungle Distributed Wagering Processor
+# Distributed Wagering Processor
 
-Implementação do desafio técnico **Jungle Gaming — Distributed Wagering Processor**.
-O [enunciado original](CHALLENGE_SPEC.md) permanece preservado.
+**Backend Challenge — Jungle Gaming**  
+Processamento distribuído de operações de apostas com saldo consistente, ledger auditável e entrega confiável de eventos.
 
-**Stack:** Bun 1.1.38 · TypeScript strict · NestJS · MikroORM · PostgreSQL 16 · AWS SQS (LocalStack) · Docker Compose.
+[![CI — main](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/workflows/ci.yml)
+[![Bun 1.x](https://img.shields.io/badge/runtime-Bun%201.x-333333)](package.json)
+[![PostgreSQL 16](https://img.shields.io/badge/database-PostgreSQL%2016-316192)](docker-compose.yml)
 
-## Comece aqui — ambiente reproduzível
+[**Executar**](#execução-rápida) · [**Arquitetura**](#arquitetura) · [**Requisitos**](#matriz-de-avaliação) · [**Testes críticos**](#testes-críticos) · [**API**](docs/API.md) · [**Demo**](docs/DEMO.md) · [**Limitações**](#decisões-e-limitações)
 
-**Opção A — aplicação e infraestrutura em Docker Compose:**
+## Objetivo e estado
 
-```bash
+Esta solução recebe `BET`, `WIN`, `LOSS`, `REFUND` e `ROLLBACK` por HTTP ou SQS FIFO. Trata concorrência, reenvios, referências fora de ordem e falhas de infraestrutura usando PostgreSQL como fonte da verdade.
+
+**Stack:** Bun 1.1.38, TypeScript strict, NestJS, MikroORM, PostgreSQL 16, AWS SQS via LocalStack e Docker Compose. O [enunciado original](CHALLENGE_SPEC.md) foi preservado.
+
+**Evidência verificada:** no [CI da `main` para `6f0f76b`](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43767143661), houve **80 testes aprovados, zero falhas, zero testes ignorados**. Também passaram build, lint, migrations, PostgreSQL/LocalStack reais e um smoke em container com SIGKILL/SIGTERM e reinício. O badge acima reflete execuções subsequentes da `main`; compare sempre o SHA avaliado.
+
+## Execução rápida
+
+Requer Docker Engine + Docker Compose v2 e portas 3000, 5432 e 4566 livres.
+
+~~~bash
+git clone https://github.com/RicardoSenna4/jungle-gaming-backend.git
+cd jungle-gaming-backend
 docker compose up --build -d
 docker compose ps
 curl http://localhost:3000/health/live
 curl http://localhost:3000/health/ready
-```
+~~~
 
-O serviço `api` aplica as migrations no início e ativa consumer, outbox e worker de referências.
-Aguarde o PostgreSQL e a inicialização das filas do LocalStack. Este ambiente é **apenas de desenvolvimento**; credenciais locais `test` e `postgres` não são adequadas para produção.
+O serviço `api` aplica as migrations ao iniciar; PostgreSQL e LocalStack têm health checks. Credenciais do Compose são **somente de desenvolvimento**. Para encerrar sem apagar volumes: `docker compose down`. Não use `down -v` se quiser preservar dados.
 
-**Opção B — aplicação no host com Bun, infraestrutura no Compose:**
+Alternativamente, rode a API com Bun no host e apenas Postgres/LocalStack no Compose; veja [guia de testes](docs/TESTING.md) e [.env.example](.env.example).
 
-```bash
-cp .env.example .env
-bun install --frozen-lockfile
-docker compose up -d postgres localstack
-bun run db:migrate
-bun run build
-ENABLE_SQS_CONSUMER=true ENABLE_OUTBOX_PUBLISHER=true bun run start:bun
-```
+## Arquitetura
 
-Use a Opção A **ou** a Opção B, não duas aplicações na porta 3000 ao mesmo tempo.
+~~~mermaid
+flowchart LR
+  HTTP["HTTP / NestJS"] --> UC["WagerProcessingService"]
+  Q["SQS FIFO · comandos"] --> IN["Consumer + Inbox"]
+  IN --> UC
+  P["Worker PENDING_REFERENCE"] --> UC
+  UC --> DB[("PostgreSQL: Wallet + Transaction + Ledger + Inbox + Outbox")]
+  DB --> PUB["Outbox Publisher"]
+  PUB --> E["SQS FIFO · eventos"]
+~~~
 
-## Arquitetura e garantias financeiras
+**Garantias centrais:** `Money` usa decimal exato em strings; o saldo é protegido por lock `SELECT FOR UPDATE` por wallet; constraints e trigger protegem o ledger. Idempotência é persistente com hash canônico SHA-256 e snapshot da resposta. Inbox confirma somente após commit; Outbox publica **depois** do commit. A entrega é **at-least-once** (o consumidor deve deduplicar eventos por `eventId`), não exactly-once.
 
-- Dinheiro imutável, string decimal com duas casas, aritmética `decimal.js` e persistência exata `NUMERIC(20,2)`; nunca `number` para montantes.
-- A wallet é a unidade de concorrência: bloqueio `SELECT FOR UPDATE` por linha, sem lock global.
-- `BET` debita, `WIN` credita e `LOSS` não altera saldo ou ledger. `REFUND` e `ROLLBACK` validam referência, moeda, valor integral e contexto.
-- Índices únicos persistentes e hash SHA-256 canônico protegem idempotência; replay devolve o saldo observado na operação original.
-- Crédito `OPENING` e cada movimento de saldo possuem lançamento no ledger. O PostgreSQL impede UPDATE/DELETE no ledger por trigger.
-- Entrada SQS via Inbox transacional; ACK somente após commit, com redelivery, backoff e DLQ.
-- Eventos são gravados na mesma transação SQL e publicados depois por Outbox, com `FOR UPDATE SKIP LOCKED`, leases e `eventId`. A garantia é **at-least-once**, não exactly-once.
-- Referências ausentes ficam `PENDING_REFERENCE` e um worker as resolve ou rejeita por TTL/limite de tentativas.
-- Reconciliação detecta diferenças entre saldo armazenado e soma do ledger; não corrige silenciosamente.
+[Arquitetura completa](ARCHITECTURE.md) · [Decisões/ADRs](docs/02_ADR_REGISTER.md) · [Recuperação de falhas](docs/FAILURE_RECOVERY.md)
 
-[Decisões arquiteturais](ARCHITECTURE.md) · [Recuperação de falhas](docs/FAILURE_RECOVERY.md) · [Matriz oficial de requisitos](docs/REQUIREMENTS_TRACEABILITY.md)
+## Matriz de avaliação
 
-## Endpoints
+A tabela utiliza **pesos oficiais**, não uma pontuação atribuída ao projeto. Cada evidência aponta para código ou teste real. A [rastreabilidade detalhada](docs/REQUIREMENTS_TRACEABILITY.md) relaciona 34 requisitos.
+
+| Critério | Peso | Implementação | Teste/evidência |
+|---|---:|---|---|
+| Correção financeira | 20 | [Money](src/domain/money.ts), [wallet/ledger](src/application/wallets/wallet-repository.ts) | [Wagering](test/integration/wager-processing.spec.ts), [schema](test/integration/schema-contracts.spec.ts) |
+| Concorrência | 20 | [Transações e locks](src/application/wager-processing.service.ts) | [4 cenários multiprocessos](test/integration/concurrency.spec.ts) |
+| Idempotência | 15 | [Hash canônico](src/application/canonical-hash.ts), [processador](src/application/wager-processing.service.ts) | [50 replays](test/integration/concurrency.spec.ts) |
+| Mensageria e falhas | 15 | [Consumer + Inbox](src/infrastructure/workers/wager-transaction.consumer.ts), [Outbox](src/infrastructure/workers/outbox-publisher.worker.ts) | [LocalStack real](test/integration/sqs-localstack.spec.ts), [smoke](scripts/smoke-compose.ts) |
+| Arquitetura | 10 | [ARCHITECTURE](ARCHITECTURE.md), [ADRs](docs/02_ADR_REGISTER.md) | [Domínio](test/unit/domain-entities.spec.ts) |
+| Testes | 10 | [Runner](scripts/test-suite-runner.ts), [CI](.github/workflows/ci.yml) | [Relatório e instruções](docs/TESTING.md) |
+| Observabilidade | 5 | [Métricas](src/infrastructure/telemetry/metrics.service.ts), [health](src/infrastructure/telemetry/health.service.ts) | [HTTP real](test/integration/http-api.spec.ts) |
+| Documentação | 5 | [API](docs/API.md), [arquitetura](ARCHITECTURE.md) | [Requisitos](docs/REQUIREMENTS_TRACEABILITY.md), [demo](docs/DEMO.md) |
+
+## Testes críticos
+
+| Cenário | Resultado esperado, validado pelo CI citado | Teste |
+|---|---|---|
+| 100.00 + duas BETs de 80.00 | 1 `PROCESSED`, 1 `REJECTED`, saldo 20.00, um débito | [Concorrência A](test/integration/concurrency.spec.ts) |
+| 50 envios simultâneos idênticos | Um efeito financeiro e 49 replays | [Concorrência B](test/integration/concurrency.spec.ts) |
+| Três processos independentes | Sem lost update e com ledger consistente | [Concorrência D](test/integration/concurrency.spec.ts) |
+| Reversão fora de ordem | `PENDING_REFERENCE` resolvida pelo worker agendado | [Pending Worker](test/integration/pending-worker.spec.ts) |
+| Reentrega/DLQ SQS | Sem novo débito e redrive de mensagem inválida | [LocalStack E2E](test/integration/sqs-localstack.spec.ts) |
+| SIGKILL/SIGTERM e reinício | Saldo, ledger e replay preservados | [Smoke Compose](scripts/smoke-compose.ts) |
+
+**Limite da prova:** o smoke encerra a API real, mas não induz necessariamente uma falha no exato instante pós-envio/pré-marcação da Outbox ou durante um ACK. Consulte [checklist](docs/DELIVERY_CHECKLIST.md).
+
+## API HTTP
 
 | Método | Rota | Finalidade |
 |---|---|---|
-| POST | `/wallets` | Criação e crédito inicial |
-| GET | `/wallets/:walletId` | Consulta de saldo/version |
-| GET | `/wallets/:walletId/ledger?limit=50&cursor=...` | Ledger com cursor opaco |
-| POST | `/wagering/transactions` | Envio financeiro; requer `Idempotency-Key` |
-| GET | `/wagering/transactions/:transactionId` | Consulta por ID interno |
-| GET | `/providers/:providerId/wagering/transactions/:externalTransactionId` | Consulta pela identidade no provedor |
-| POST | `/wallets/:walletId/reconciliation` | Comparação materializado/ledger |
-| GET | `/health/live` | Liveness |
-| GET | `/health/ready` | PostgreSQL e SQS disponíveis |
-| GET | `/metrics` | Prometheus por instância |
+| `POST` | `/wallets` | Criação e crédito `OPENING` |
+| `GET` | `/wallets/:walletId` | Saldo e versão |
+| `GET` | `/wallets/:walletId/ledger` | Ledger paginado |
+| `POST` | `/wagering/transactions` | Envio com `Idempotency-Key` |
+| `GET` | `/wagering/transactions/:transactionId` | Consulta interna |
+| `GET` | `/providers/:providerId/wagering/transactions/:externalTransactionId` | Consulta externa |
+| `POST` | `/wallets/:walletId/reconciliation` | Reconciliação |
+| `GET` | `/health/live`, `/health/ready`, `/metrics` | Saúde e observabilidade |
 
-**Exemplo BET:**
+[Contratos, payloads e códigos HTTP](docs/API.md) · [Roteiro de demonstração](docs/DEMO.md)
 
-```bash
-curl -X POST http://localhost:3000/wagering/transactions \
-  -H 'Content-Type: application/json' \
-  -H 'Idempotency-Key: provider-a:bet-1' \
-  -d '{"providerId":"provider-a","externalTransactionId":"bet-1","playerId":"SEU_PLAYER_ID","walletId":"UUID_DA_WALLET","roundId":"round-1","gameId":"game-1","kind":"BET","money":{"amount":"25.00","currency":"BRL"}}'
-```
+## Testes e CI
 
-Crie a wallet primeiro via `POST /wallets` e substitua os marcadores pelos dados retornados e pelo `playerId` escolhido.
-
-## Evidência reproduzível do commit integrado
-
-No commit [`09acbd3`](https://github.com/RicardoSenna4/jungle-gaming-backend/commit/09acbd3be159acd482cd88e9814a105f8e29a45d), o [CI da `main`](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43763470242) aprovou **80 testes, zero falhas, zero erros e zero testes ignorados**, além de executar o fluxo completo no container Docker Compose. O smoke test criou uma wallet, processou BET via HTTP e WIN via SQS, conferiu ledger/reconciliação/outbox e verificou persistência após **SIGKILL** e **SIGTERM** da API seguidos de reinicialização.
-
-Esses encerramentos foram feitos no serviço `api` de um ambiente descartável de CI. **Não constituem prova de todos os instantes de falha de consumer/outbox em trânsito**, nem de compatibilidade com AWS real. Os experimentos adicionais permanecem no checklist de homologação.
-
-O script `scripts/smoke-compose.ts` é **destrutivo para a instância local** e exige `SMOKE_ALLOW_DISRUPTION=1`; não execute em ambiente compartilhado ou de produção.
-
-## Qualidade e testes
-
-```bash
+~~~bash
+bun install --frozen-lockfile
 bun run typecheck
 bun run lint
 bun run format:check
 bun run build
-bun run test:unit
-bun run test:integration:postgres
-bun run test:integration:sqs
-bun run test:concurrency
-bun run test:recovery
+# Com Postgres, LocalStack e migrations aplicadas em banco isolado:
 bun run test:all
-bun run db:migration:check
-# Após docker compose up -d api, em ambiente isolado:
-SMOKE_ALLOW_DISRUPTION=1 bun run smoke:compose
-```
+~~~
 
-Para as integrações, inicie PostgreSQL e LocalStack antes dos testes e aplique as migrations.
-Os scripts isolam suítes que usam TRUNCATE e recusam relatórios JUnit com **zero testes ou skips**.
-A CI executa os mesmos comandos em runner descartável, incluindo LocalStack real,
-concorrência multiprocessos e rollback da cadeia de migrations.
+O CI executa todos os testes necessários com PostgreSQL e LocalStack reais. O runner falha se houver testes obrigatórios ignorados ou targets sem testes. [Instruções e evidências](docs/TESTING.md).
 
-**Acompanhe o SHA enviado**, não apenas um badge verde de commit anterior:
-[GitHub Actions](https://github.com/RicardoSenna4/jungle-gaming-backend/actions).
-Os resultados, limitações e como reproduzi-los estão em [TESTING.md](docs/TESTING.md).
+## Decisões e limitações
 
-## Cenários de avaliação prioritários
+- **Monólito modular:** evita transações distribuídas adicionais.
+- **Lock por wallet:** reduz concorrência sobre saldo compartilhado, sem lock global.
+- **Auth:** não implementada, conforme escopo permitido. O [guard](src/interfaces/http/provider-identity.guard.ts) é um ponto de extensão **no-op**; não fornece segurança real.
+- **Ambiente:** LocalStack, sem validar AWS gerenciado, IdP, segredos ou observabilidade centralizada.
+- **Entrega:** não prometer exactly-once nem robustez contra todos os modos de falha; a homologação humana e a submissão permanecem pendentes.
 
-1. Wallet 100.00 + duas BETs concorrentes de 80.00: uma PROCESSED, uma REJECTED, saldo 20.00, um débito.
-2. 50 reenvios simultâneos idênticos: uma única movimentação e 49 replays.
-3. Três processos independentes sobre uma wallet e wallets diferentes em paralelo.
-4. REFUND/ROLLBACK concorrentes, fora de ordem e com saldo insuficiente.
-5. Worker reiniciado depois do commit/pré-ACK; Inbox mantém uma única movimentação.
-6. Commit financeiro seguido de queda antes do publish; Outbox recupera o evento.
-7. Ledger append-only, migrations, health, métricas e reconciliação.
+[Limitações](docs/OPEN_ISSUES.md) · [Checklist de entrega](docs/DELIVERY_CHECKLIST.md)
 
-As assertions e o status de execução por cenário estão detalhados em [TESTING.md](docs/TESTING.md) e na [matriz de rastreabilidade](docs/REQUIREMENTS_TRACEABILITY.md).
+## Documentação
 
-## Autenticação e limitações declaradas
+[Arquitetura](ARCHITECTURE.md) · [Rastreabilidade](docs/REQUIREMENTS_TRACEABILITY.md) · [API](docs/API.md) · [Demonstração](docs/DEMO.md) · [Testes](docs/TESTING.md) · [Falhas](docs/FAILURE_RECOVERY.md) · [ADRs](docs/02_ADR_REGISTER.md) · [Índice de ADRs](docs/adr/README.md) · [Auditoria](docs/FINAL_DELIVERY_AUDIT.md) · [Enunciado](CHALLENGE_SPEC.md).
 
-O desafio **permite não implementar autenticação**. A aplicação não possui validação OIDC;
-`ChallengeProviderIdentityGuard` é um ponto de extensão **no-op explícito**, não um mecanismo de segurança.
-Em produção seria necessário IdP externo, autorização e validação de identidade do provedor.
-Health permanece público. Mensagens SQS usam canal interno confiável, com validação de envelope/provedor.
-
-A entrega não é produção: não inclui gestão de segredos, operação em AWS real,
-deduplicador downstream de produção, observabilidade centralizada nem provisionamento de alta disponibilidade.
-Consulte [limitações e verificações pendentes](docs/OPEN_ISSUES.md).
-
-## Outros documentos
-
-- [Arquitetura e trade-offs](ARCHITECTURE.md)
-- [Matriz de requisitos e testes](docs/REQUIREMENTS_TRACEABILITY.md)
-- [Testes e evidências](docs/TESTING.md)
-- [Falhas e recuperação](docs/FAILURE_RECOVERY.md)
-- [ADRs](docs/02_ADR_REGISTER.md)
-- [Checklist de entrega](docs/DELIVERY_CHECKLIST.md)
-- [Enunciado original](CHALLENGE_SPEC.md)
-
-## Auditoria e aceite da entrega
-
-- [Relatório consolidado por dez áreas](docs/FINAL_DELIVERY_AUDIT.md)
-- [Matriz completa requisito → código → teste](docs/REQUIREMENTS_TRACEABILITY.md)
-- [Checklist final e ações do proprietário](docs/DELIVERY_CHECKLIST.md)
+Os resultados vermelhos de commits intermediários permanecem no histórico; a entrega é demonstrada pelo **CI verde associado ao SHA submetido**, sem reescrever a história do projeto.
