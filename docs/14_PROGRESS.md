@@ -196,3 +196,12 @@ Validações locais no código F01:
 - GitHub Actions da branch F00/F01: PENDENTE até publicação e execução do workflow.
 
 O README foi alinhado aos novos comandos e ao requisito de serviços. F02 e fases posteriores não foram iniciadas, respeitando o limite solicitado.
+
+
+## Fechamento das correções — 15/11/2026
+
+- Integrado `fix/challenge-f00-f01` por fast-forward, commit `6dc45fc`.
+- Integrado `fix/challenge-final-remediation` por fast-forward, commit `3cdb0eb`.
+- CI no commit de código `3cdb0eb`: [Actions 43760715469](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43760715469), 80 PASS, 0 FAIL, 0 SKIP, PostgreSQL e LocalStack reais e migration chain up/down/up.
+- Documentos finais: `docs/FINAL_DELIVERY_AUDIT.md`, `docs/REQUIREMENTS_TRACEABILITY.md` e `docs/DELIVERY_CHECKLIST.md`.
+- Teste de instalação limpa pelo proprietário, verificação de acesso ao repositório privado e submissão oficial **ainda pendentes**.

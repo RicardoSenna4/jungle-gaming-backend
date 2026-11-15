@@ -129,3 +129,9 @@ Consulte [limitações e verificações pendentes](docs/OPEN_ISSUES.md).
 - [ADRs](docs/02_ADR_REGISTER.md)
 - [Checklist de entrega](docs/DELIVERY_CHECKLIST.md)
 - [Enunciado original](CHALLENGE_SPEC.md)
+
+## Auditoria e aceite da entrega
+
+- [Relatório consolidado por dez áreas](docs/FINAL_DELIVERY_AUDIT.md)
+- [Matriz completa requisito → código → teste](docs/REQUIREMENTS_TRACEABILITY.md)
+- [Checklist final e ações do proprietário](docs/DELIVERY_CHECKLIST.md)
