@@ -46,10 +46,7 @@ type Wager = {
 type LedgerPage = { items: Array<{ id: string }>; nextCursor?: string };
 type Reconciliation = { consistent: boolean; calculatedBalance: { amount: string } };
 
-async function request<T>(
-  path: string,
-  init?: RequestInit,
-): Promise<{ status: number; body: T }> {
+async function request<T>(path: string, init?: RequestInit): Promise<{ status: number; body: T }> {
   const response = await fetch(`${base}${path}`, {
     ...init,
     signal: AbortSignal.timeout(5_000),
@@ -84,12 +81,16 @@ function docker(...args: string[]): void {
 }
 
 async function waitForReady(): Promise<void> {
-  await pollUntil('API readiness', async () => {
-    const live = await request<{ status: string }>('/health/live');
-    if (live.status !== 200 || live.body.status !== 'ok') return false;
-    const ready = await request<{ status: string }>('/health/ready');
-    return ready.status === 200 && ready.body.status === 'ok';
-  }, 90_000);
+  await pollUntil(
+    'API readiness',
+    async () => {
+      const live = await request<{ status: string }>('/health/live');
+      if (live.status !== 200 || live.body.status !== 'ok') return false;
+      const ready = await request<{ status: string }>('/health/ready');
+      return ready.status === 200 && ready.body.status === 'ok';
+    },
+    90_000,
+  );
 }
 
 function jsonPost(body: unknown, key?: string): RequestInit {
@@ -173,47 +174,50 @@ async function smoke(): Promise<void> {
   assert.equal(walletAfterWin.body.balance.amount, '85.00');
   const ledger = await request<LedgerPage>(`/wallets/${walletId}/ledger`);
   assert.equal(ledger.body.items.length, 3);
-  const recon = await request<Reconciliation>(
-    `/wallets/${walletId}/reconciliation`,
-    { method: 'POST' },
-  );
+  const recon = await request<Reconciliation>(`/wallets/${walletId}/reconciliation`, {
+    method: 'POST',
+  });
   assert.equal(recon.body.consistent, true);
   assert.equal(recon.body.calculatedBalance.amount, '85.00');
   console.log('[smoke] HTTP + SQS + ledger + reconciliation passed');
 
   let published = false;
-  await pollUntil('BET event published from outbox to real SQS', async () => {
-    const received = await sqs.send(
-      new ReceiveMessageCommand({
-        QueueUrl: eventsQueue,
-        MaxNumberOfMessages: 10,
-        WaitTimeSeconds: 1,
-      }),
-    );
-    for (const message of received.Messages ?? []) {
-      if (message.Body) {
-        const event = JSON.parse(message.Body) as {
-          eventId?: unknown;
-          aggregateId?: unknown;
-          version?: unknown;
-        };
-        if (event.aggregateId === first.body.transactionId) {
-          assert.equal(typeof event.eventId, 'string');
-          assert.equal(event.version, 1);
-          published = true;
+  await pollUntil(
+    'BET event published from outbox to real SQS',
+    async () => {
+      const received = await sqs.send(
+        new ReceiveMessageCommand({
+          QueueUrl: eventsQueue,
+          MaxNumberOfMessages: 10,
+          WaitTimeSeconds: 1,
+        }),
+      );
+      for (const message of received.Messages ?? []) {
+        if (message.Body) {
+          const event = JSON.parse(message.Body) as {
+            eventId?: unknown;
+            aggregateId?: unknown;
+            version?: unknown;
+          };
+          if (event.aggregateId === first.body.transactionId) {
+            assert.equal(typeof event.eventId, 'string');
+            assert.equal(event.version, 1);
+            published = true;
+          }
+        }
+        if (message.ReceiptHandle) {
+          await sqs.send(
+            new DeleteMessageCommand({
+              QueueUrl: eventsQueue,
+              ReceiptHandle: message.ReceiptHandle,
+            }),
+          );
         }
       }
-      if (message.ReceiptHandle) {
-        await sqs.send(
-          new DeleteMessageCommand({
-            QueueUrl: eventsQueue,
-            ReceiptHandle: message.ReceiptHandle,
-          }),
-        );
-      }
-    }
-    return published;
-  }, 30_000);
+      return published;
+    },
+    30_000,
+  );
   console.log('[smoke] confirmed outbox event delivered to SQS');
 
   docker('kill', '-s', 'SIGKILL', 'api');
@@ -223,10 +227,7 @@ async function smoke(): Promise<void> {
   assert.equal(afterCrash.body.balance.amount, '85.00');
   const afterCrashLedger = await request<LedgerPage>(`/wallets/${walletId}/ledger`);
   assert.equal(afterCrashLedger.body.items.length, 3);
-  const afterCrashReplay = await request<Wager>(
-    '/wagering/transactions',
-    jsonPost(bet, betKey),
-  );
+  const afterCrashReplay = await request<Wager>('/wagering/transactions', jsonPost(bet, betKey));
   assert.equal(afterCrashReplay.status, 200);
   assert.equal(afterCrashReplay.body.idempotentReplay, true);
   assert.equal(afterCrashReplay.body.balance.amount, '75.00');
