@@ -19,7 +19,10 @@ import { CreateWalletRequestDto } from './dtos';
 export class WalletController {
   private readonly logger = new Logger(WalletController.name);
 
-  constructor(private readonly wallets: WalletService, private readonly metrics: MetricsService) {}
+  constructor(
+    private readonly wallets: WalletService,
+    private readonly metrics: MetricsService,
+  ) {}
 
   @Post()
   create(@Body() body: CreateWalletRequestDto) {
@@ -48,7 +51,9 @@ export class WalletController {
   @HttpCode(HttpStatus.OK)
   async reconcile(@Param('walletId') walletId: string) {
     const result = await this.wallets.reconcile(walletId);
-    this.metrics.increment('wallet_reconciliations_total', { consistent: String(result.consistent) });
+    this.metrics.increment('wallet_reconciliations_total', {
+      consistent: String(result.consistent),
+    });
     if (!result.consistent) {
       this.metrics.increment('wallet_reconciliation_mismatches_total');
       this.logger.warn(

@@ -20,8 +20,9 @@ describe('Money', () => {
   });
   it('preserves 20-digit decimal arithmetic without binary floating point or silent rounding', () => {
     const value = Money.from({ amount: '999999999999999999.99', currency: 'BRL' });
-    expect(value.subtract(Money.from({ amount: '0.01', currency: 'BRL' })).toString())
-      .toBe('999999999999999999.98');
+    expect(value.subtract(Money.from({ amount: '0.01', currency: 'BRL' })).toString()).toBe(
+      '999999999999999999.98',
+    );
   });
   it('rejects mixed currencies', () =>
     expect(() =>

@@ -169,11 +169,16 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
       // redrive policy moves poison messages to the DLQ.
       const attempt = Math.max(1, Number(message.Attributes?.ApproximateReceiveCount ?? 1));
       const delaySeconds = Math.min(2 ** Math.min(attempt - 1, 7), 120);
-      await this.sqs.send(new ChangeMessageVisibilityCommand({
-        QueueUrl: this.queueUrl, ReceiptHandle: message.ReceiptHandle,
-        VisibilityTimeout: delaySeconds,
-      }));
-      this.metrics?.increment('sqs_messages_retry_total', { reason: result.failureCode ?? 'transient' });
+      await this.sqs.send(
+        new ChangeMessageVisibilityCommand({
+          QueueUrl: this.queueUrl,
+          ReceiptHandle: message.ReceiptHandle,
+          VisibilityTimeout: delaySeconds,
+        }),
+      );
+      this.metrics?.increment('sqs_messages_retry_total', {
+        reason: result.failureCode ?? 'transient',
+      });
       return;
     }
     await this.sqs.send(
@@ -202,17 +207,30 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
     const data = envelope.data;
     const iso = envelope.occurredAt;
     const valid =
-      typeof envelope.messageId === 'string' && envelope.messageId.trim().length > 0 &&
+      typeof envelope.messageId === 'string' &&
+      envelope.messageId.trim().length > 0 &&
       envelope.type === 'WagerTransactionRequested' &&
-      typeof iso === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(iso) &&
+      typeof iso === 'string' &&
+      /^\d{4}-\d{2}-\d{2}T/.test(iso) &&
       Number.isFinite(Date.parse(iso)) &&
-      typeof data === 'object' && data !== null &&
-      ['providerId', 'externalTransactionId', 'idempotencyKey', 'playerId',
-        'walletId', 'roundId', 'gameId'].every((key) =>
+      typeof data === 'object' &&
+      data !== null &&
+      [
+        'providerId',
+        'externalTransactionId',
+        'idempotencyKey',
+        'playerId',
+        'walletId',
+        'roundId',
+        'gameId',
+      ].every(
+        (key) =>
           typeof (data as unknown as Record<string, unknown>)[key] === 'string' &&
-          String((data as unknown as Record<string, unknown>)[key]).trim().length > 0) &&
+          String((data as unknown as Record<string, unknown>)[key]).trim().length > 0,
+      ) &&
       ['BET', 'WIN', 'LOSS', 'REFUND', 'ROLLBACK'].includes(data.kind) &&
-      typeof data.money === 'object' && data.money !== null &&
+      typeof data.money === 'object' &&
+      data.money !== null &&
       typeof data.money.amount === 'string' &&
       /^(0|[1-9]\d*)\.\d{2}$/.test(data.money.amount) &&
       Number(data.money.amount) > 0 &&

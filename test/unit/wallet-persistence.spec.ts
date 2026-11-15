@@ -16,14 +16,21 @@ describe('ledger cursor', () => {
 
   it('rejects malformed cursors', () => {
     expect(() => decodeLedgerCursor('not-a-cursor')).toThrow('INVALID_LEDGER_CURSOR');
-    expect(() => decodeLedgerCursor(encodeLedgerCursor({
-      createdAt: 'yesterday', id: 'not-a-uuid',
-    }))).toThrow('INVALID_LEDGER_CURSOR');
+    expect(() =>
+      decodeLedgerCursor(
+        encodeLedgerCursor({
+          createdAt: 'yesterday',
+          id: 'not-a-uuid',
+        }),
+      ),
+    ).toThrow('INVALID_LEDGER_CURSOR');
   });
 
   it('preserves microsecond precision for stable ledger pagination', () => {
-    const value = { createdAt: '2026-01-01T00:00:00.123456Z',
-      id: '00000000-0000-0000-0000-000000000123' };
+    const value = {
+      createdAt: '2026-01-01T00:00:00.123456Z',
+      id: '00000000-0000-0000-0000-000000000123',
+    };
     expect(decodeLedgerCursor(encodeLedgerCursor(value))).toEqual(value);
   });
 });

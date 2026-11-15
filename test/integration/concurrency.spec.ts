@@ -122,7 +122,10 @@ describeIntegration('real multi-process wallet concurrency', () => {
 
     expect(results).toHaveLength(50);
     if (results.some((result) => result.error)) {
-      console.error('Concurrent idempotency errors:', JSON.stringify(results.filter((r) => r.error)));
+      console.error(
+        'Concurrent idempotency errors:',
+        JSON.stringify(results.filter((r) => r.error)),
+      );
     }
     expect(results.filter((result) => result.error)).toHaveLength(0);
     expect(results.filter((result) => result.idempotentReplay === false)).toHaveLength(1);

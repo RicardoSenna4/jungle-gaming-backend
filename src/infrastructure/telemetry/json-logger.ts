@@ -3,9 +3,20 @@ import { LoggerService } from '@nestjs/common';
 // Only expose approved operational fields; never serialize full financial payloads,
 // credentials, request headers, arbitrary stack traces or raw error objects.
 const SAFE_FIELDS = [
-  'event', 'correlationId', 'messageId', 'transactionId', 'walletId',
-  'providerId', 'status', 'idempotentReplay', 'outboxId', 'eventType',
-  'errorCode', 'errorName', 'checkedEntries', 'context',
+  'event',
+  'correlationId',
+  'messageId',
+  'transactionId',
+  'walletId',
+  'providerId',
+  'status',
+  'idempotentReplay',
+  'outboxId',
+  'eventType',
+  'errorCode',
+  'errorName',
+  'checkedEntries',
+  'context',
 ] as const;
 
 export class JsonLogger implements LoggerService {
@@ -39,10 +50,22 @@ export class JsonLogger implements LoggerService {
     (level === 'error' ? process.stderr : process.stdout).write(JSON.stringify(record) + '\n');
   }
 
-  log(message: unknown, context?: string): void { this.emit('info', message, context); }
-  warn(message: unknown, context?: string): void { this.emit('warn', message, context); }
-  error(message: unknown, _trace?: string, context?: string): void { this.emit('error', message, context); }
-  debug(message: unknown, context?: string): void { this.emit('debug', message, context); }
-  verbose(message: unknown, context?: string): void { this.emit('verbose', message, context); }
-  fatal(message: unknown, context?: string): void { this.emit('fatal', message, context); }
+  log(message: unknown, context?: string): void {
+    this.emit('info', message, context);
+  }
+  warn(message: unknown, context?: string): void {
+    this.emit('warn', message, context);
+  }
+  error(message: unknown, _trace?: string, context?: string): void {
+    this.emit('error', message, context);
+  }
+  debug(message: unknown, context?: string): void {
+    this.emit('debug', message, context);
+  }
+  verbose(message: unknown, context?: string): void {
+    this.emit('verbose', message, context);
+  }
+  fatal(message: unknown, context?: string): void {
+    this.emit('fatal', message, context);
+  }
 }

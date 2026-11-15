@@ -39,14 +39,18 @@ export class PendingReferenceWorker implements OnModuleInit, OnModuleDestroy {
     this.timer = setInterval(() => {
       const task = this.runOnce();
       this.inFlight = task;
-      void task.catch((error: unknown) => {
-        this.logger.error(JSON.stringify({
-          event: 'pending_reference_tick_failed',
-          errorName: error instanceof Error ? error.name : 'UnknownError',
-        }));
-      }).finally(() => {
-        if (this.inFlight === task) this.inFlight = undefined;
-      });
+      void task
+        .catch((error: unknown) => {
+          this.logger.error(
+            JSON.stringify({
+              event: 'pending_reference_tick_failed',
+              errorName: error instanceof Error ? error.name : 'UnknownError',
+            }),
+          );
+        })
+        .finally(() => {
+          if (this.inFlight === task) this.inFlight = undefined;
+        });
     }, this.intervalMs);
   }
 
