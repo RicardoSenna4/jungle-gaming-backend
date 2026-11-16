@@ -1,0 +1,11 @@
+{
+  "signal": "SIGKILL",
+  "eventId": "69142c34-0b1c-4e35-8d9f-621113dd5f7b",
+  "firstPid": 157728,
+  "restartedPid": 157800,
+  "sqsReceiptConfirmed": true,
+  "attempts": 2,
+  "marked": true,
+  "financialSnapshotUnchanged": true,
+  "deliveryGuarantee": "at-least-once"
+}

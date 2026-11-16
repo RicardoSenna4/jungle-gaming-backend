@@ -75,3 +75,20 @@ Tarefas 5–7: [hardening OIDC](OIDC_HARDENING.md), [gestão de quarentena](QUAR
 e [prova commit/ACK](INBOX_COMMIT_ACK_RECOVERY.md). A prova local nova cobre
 especificamente SIGKILL pós-commit/pré-ACK da Inbox com PG/LocalStack e processos
 independentes; não estende automaticamente a evidência à janela send/mark da Outbox.
+
+## Tarefas 8–12
+
+- Outbox: [prova send/mark](OUTBOX_PUBLISH_RECOVERY.md), processos independentes,
+  PostgreSQL/LocalStack, eventId estável e snapshot financeiro preservado.
+- Consumo externo: [exemplo isolado](../examples/event-consumer/README.md),
+  deduplicação persistente, concorrência e SIGKILL pós-commit/pré-ACK.
+- Observabilidade: [profile opcional](OBSERVABILITY.md), dashboard, regras e
+  amostrador SQL; métricas OIDC permanecem protegidas.
+- Desempenho: [k6 independente](../performance/README.md) e
+  [medições reais](PERFORMANCE_REPORT.md), invariantes SQL/HTTP e SQS real.
+- AWS: [Terraform](../infra/terraform/README.md), validação estática apenas;
+  nenhuma implantação ou entrega externa de alertas foi declarada.
+
+O runner obrigatório inclui outbox-publish-recovery, reference-event-consumer e
+database-metrics. Execução final local: 139 testes/23 targets sem falhas/skips.
+A evidência não permite declarar exactly-once fim a fim ou capacidade de produção.

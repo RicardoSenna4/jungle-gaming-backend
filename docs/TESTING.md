@@ -131,3 +131,14 @@ processos independentes, SIGKILL real antes do DeleteMessage, visibilidade real,
 redelivery e snapshot financeiro invariável. Veja [protocolo e evidências](INBOX_COMMIT_ACK_RECOVERY.md).
 O CI publica JUnit/log e `.test-results/inbox-commit-ack-evidence.json` com SHA/base,
 status dirty e hashes dos arquivos, sem atribuir validação de worktree sujo a um SHA limpo.
+
+## Recuperação Outbox e consumidor de eventos
+
+`bun run test:recovery` inclui os processos SIGKILL da Inbox, Outbox e do consumidor
+didático. `bun run test:all` também executa o amostrador SQL de métricas. Exigem
+PostgreSQL/LocalStack reais e criam bancos/filas exclusivos para os cenários novos.
+Ver [Outbox](OUTBOX_PUBLISH_RECOVERY.md) e [exemplo](../examples/event-consumer/README.md).
+Fixtures ficam em test/ e fora do contexto Docker; produção não possui flag de pausa.
+Carga k6 é opcional e usa seu próprio Compose, separado do runner obrigatório:
+[reprodução](../performance/README.md). Terraform tem workflow estático independente,
+sem credenciais AWS, plan ou apply.

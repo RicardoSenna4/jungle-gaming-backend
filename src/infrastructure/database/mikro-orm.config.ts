@@ -1,3 +1,4 @@
+import { databaseTlsConfig } from './database-tls.config';
 import {
   QuarantineRedriveAttempt,
   QuarantineOperationEvent,
@@ -18,7 +19,7 @@ import {
 export default defineConfig({
   driverOptions: {
     connection: {
-      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+      ssl: databaseTlsConfig(),
     },
   },
   dbName: process.env.DB_NAME ?? 'jungle',

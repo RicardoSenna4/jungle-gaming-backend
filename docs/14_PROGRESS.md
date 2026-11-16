@@ -548,3 +548,14 @@ Suíte k6 separada em Compose descartável,5cenários HTTP, lote SQS real e vali
 SQL/HTTP posterior. 31wallets reconciliadas,20Inbox,424eventos publicados; checks
 aprovados. Relatório e summaries reais versionados, sem extrapolar ensaio curto
 de4VUs para produção. Suíte funcional136/23targets sem skips; qualidade aprovada.
+
+## 2026-11-16 — Tarefa 12
+
+Terraform modular network/data/runtime: ECS privado, ALB TLS, RDS criptografado,
+SQS FIFO/DLQ, IAM específico, secrets por ARN, autoscaling e rollback. Terraform
+1.10.5/provider AWS 5.100.0: fmt/init backend=false/validate aprovados; sem plan,
+apply ou recursos pagos. Testes reproduziram TLS sem validação e endpoint SQS
+local forçado; correções usam CA confiável e SDK credential chain no ECS.
+Typecheck/lint/format/build e 139 testes em 23 targets passaram, zero skips.
+Bootstrap DB/roles, migrações privadas, DNS/ACM/IdP, restore e operação AWS exigem
+conta isolada autorizada; não há alegação de produção validada.

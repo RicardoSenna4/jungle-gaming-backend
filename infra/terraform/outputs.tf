@@ -1,0 +1,9 @@
+output "alb_dns_name" { value = module.runtime.alb_dns }
+output "database_endpoint" { value = module.data.database_host }
+output "master_secret_arn" { value = module.data.master_secret_arn }
+output "cluster" { value = module.runtime.cluster }
+output "service" { value = module.runtime.service }
+output "task_definition" { value = module.runtime.task_definition }
+output "command_queue_url" { value = module.data.command_url }
+output "event_queue_url" { value = module.data.events_url }
+output "private_subnets" { value = module.network.private_subnets }

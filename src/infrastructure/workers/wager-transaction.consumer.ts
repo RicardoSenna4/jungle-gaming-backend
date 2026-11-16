@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
+import { sqsClientConfig } from './sqs-client.config';
 import { createHash } from 'node:crypto';
 import {
   ChangeMessageVisibilityCommand,
@@ -39,14 +40,7 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
   private readonly dlqQueueUrl =
     process.env.SQS_DLQ_QUEUE_URL ??
     `${process.env.SQS_ENDPOINT ?? 'http://localhost:4566'}/000000000000/wager-transactions-dlq.fifo`;
-  private readonly sqs = new SQSClient({
-    region: process.env.AWS_REGION ?? 'us-east-1',
-    endpoint: process.env.SQS_ENDPOINT ?? 'http://localhost:4566',
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? 'test',
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? 'test',
-    },
-  });
+  private readonly sqs = new SQSClient(sqsClientConfig());
   private stopping = false;
   private polling?: Promise<void>;
   private readonly inFlight = new Set<Promise<unknown>>();

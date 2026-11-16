@@ -1,0 +1,23 @@
+name: terraform static validation
+on:
+  push:
+    paths: ['infra/terraform/**', '.github/workflows/terraform.yml']
+  pull_request:
+    paths: ['infra/terraform/**', '.github/workflows/terraform.yml']
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.10.5'
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false -input=false
+      - run: terraform validate -no-color

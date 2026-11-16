@@ -1,0 +1,17 @@
+# EXAMPLE ONLY: replace account, certificate, secrets, IdP, DNS and image after review.
+environment = "staging"
+region = "us-east-1"
+availability_zones = ["us-east-1a", "us-east-1b"]
+vpc_cidr = "10.41.0.0/16"
+single_nat = false
+desired_count = 2
+maximum_count = 4
+db_instance_class = "db.t4g.small"
+allowed_ingress_cidrs = ["203.0.113.0/24"]
+certificate_arn = "arn:aws:acm:us-east-1:000000000000:certificate/REPLACE"
+image = "000000000000.dkr.ecr.us-east-1.amazonaws.com/jungle@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+ecr_repository_arn = "arn:aws:ecr:us-east-1:000000000000:repository/jungle"
+database_credentials_secret_arn = "arn:aws:secretsmanager:us-east-1:000000000000:secret:REPLACE-app-db"
+database_ca_secret_arn = "arn:aws:secretsmanager:us-east-1:000000000000:secret:REPLACE-rds-ca"
+oidc_issuer = "https://idp.example.invalid/realms/jungle"
+oidc_audience = "jungle-api"

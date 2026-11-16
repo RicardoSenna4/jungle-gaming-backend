@@ -1,21 +1,11 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { GetQueueAttributesCommand, SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
+import { sqsClientConfig } from './sqs-client.config';
 
 @Injectable()
 export class SqsInfrastructureClient implements OnModuleDestroy {
   private readonly endpoint = process.env.SQS_ENDPOINT;
-  private readonly client = new SQSClient({
-    region: process.env.AWS_REGION ?? 'us-east-1',
-    ...(this.endpoint ? { endpoint: this.endpoint } : {}),
-    ...(this.endpoint
-      ? {
-          credentials: {
-            accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? 'test',
-            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? 'test',
-          },
-        }
-      : {}),
-  });
+  private readonly client = new SQSClient(sqsClientConfig());
 
   get commandQueueUrl(): string {
     return this.resolveQueueUrl(process.env.SQS_QUEUE_URL, 'wager-transactions.fifo');

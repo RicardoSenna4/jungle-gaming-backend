@@ -14,3 +14,9 @@ pode haver nova entrega. Consumidores precisam deduplicação persistente por ev
 A prova confirma recepção do primeiro envio e recuperação da confirmação, sem
 inferir duas entregas dentro da janela FIFO. Evidência em
 .test-results/outbox-publish-recovery-evidence.json, incluída no upload do CI.
+
+Evidência real versionada da execução final local:
+[evidence/task8/outbox-publish-recovery.json](evidence/task8/outbox-publish-recovery.json).
+IDs/PIDs são sintéticos de teste; sinal SIGKILL, attempts=2 e snapshot preservado.
+CI existente executa o target e publica seu artefato; resultado remoto precisa ser
+consultado no SHA publicado, sem presumir que o sucesso local o substitui.
