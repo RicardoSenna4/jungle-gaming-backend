@@ -397,3 +397,39 @@ Arquivos criados/modificados na Tarefa 4:
 - `test/integration/administrative-role-access.spec.ts`
 - `test/integration/provider-authorization-audit.spec.ts`
 - `test/unit/administrative-claims-policy.spec.ts`
+
+## 2026-11-16 — Preparação operacional do rollout OIDC
+
+Branch `ops/oidc-rollout`, worktree `/workspace/jungle-oidc-rollout`, base `4843ee5`.
+Após inspeção do repositório e metadata do runtime, não há issuer/realm/cliente,
+IdP administrativo ou coletor configurados, nem subjects aprovados conhecidos.
+Pergunta de esclarecimento enviada; nenhuma identidade ou privilégio de produção
+foi inventado/aplicado. Credenciais não foram solicitadas em chat.
+
+Implementados `scripts/oidc-rollout.ts`, plano de exemplo em `infra/rollout`, guia
+`docs/OIDC_ROLLOUT.md`, link em ADMINISTRATIVE_ACCESS e specs de validação/PG real.
+Sem --apply, ferramenta apenas gera arquivos de revisão privados, sem conexão SQL.
+Aplicação exige plano explícito, alvo DB exatamente igual ao ambiente e não aceita
+placeholders de exemplo. Grants são explícitos, atômicos e idempotentes, sem afetar
+finanças/wallets; actor é atribuição administrativa do canal confiável. Conexão SQL
+production deste script verifica certificado TLS, com CA opcional por arquivo.
+
+Configuração candidata do coletor usa OAuth2 client credentials, scope metrics:read
+e secret por arquivo, sem valores secretos. api-environment.json mantém OIDC e
+métricas autenticadas. Configuração do IdP/serviço de coleta depende do destino real.
+
+Validação: typecheck/lint/format/build passaram; suíte completa com **117 testes,
+17 targets, zero falhas/erros/skips**, PostgreSQL/LocalStack reais. Casos novos
+validam plano seguro, ausência de inline secrets, escopo explícito, idempotência e
+rollback de lote em falha de trigger PostgreSQL. Geração dry-run executada.
+Configuração candidata passou em `promtool check config --syntax-only` com
+Prometheus v3.2.1, preservando permissões 0600 (container executado como UID do arquivo).
+Isso não comprova autenticação no IdP ou scrape real, que permanecem pendentes.
+
+Arquivos: scripts/oidc-rollout.ts, scripts/test-suite-runner.ts,
+infra/rollout/plan.example.json, test/unit/oidc-rollout.spec.ts,
+test/integration/oidc-rollout.spec.ts, docs/OIDC_ROLLOUT.md,
+docs/ADMINISTRATIVE_ACCESS.md e este progresso.
+Sem deploy, push, merge ou confirmação de CI remoto. Continuar o rollout após
+identificação do IdP/cliente/audience, subjects aprovados e coletor, com acesso
+administrativo e credenciais fornecidos pelos canais seguros.

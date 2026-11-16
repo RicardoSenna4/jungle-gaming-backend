@@ -96,3 +96,7 @@ Compose não substitui papéis PostgreSQL separados em produção.
 Sem migrations novas nesta tarefa. `AUTH_MODE=challenge` mantém operações locais
 do desafio; o endurecimento administrativo aplica-se em OIDC e a proteção de
 métricas segue a matriz explícita acima.
+
+O [procedimento de rollout](OIDC_ROLLOUT.md) contém plano explícito, geração de
+configuração OAuth2 do coletor e aplicação atômica/idempotente dos subjects aprovados.
+A ferramenta não configura um IdP desconhecido nem descobre/aprova identidades.

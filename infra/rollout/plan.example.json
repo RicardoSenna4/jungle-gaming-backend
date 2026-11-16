@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "environment": "production",
+  "issuer": "https://idp.example.invalid/realms/jungle",
+  "audience": "jungle-api",
+  "apiUrl": "https://api.example.invalid",
+  "tokenUrl": "https://idp.example.invalid/realms/jungle/protocol/openid-connect/token",
+  "metricsClientId": "jungle-metrics",
+  "metricsClientSecretFile": "/run/secrets/jungle_metrics_client_secret",
+  "database": { "host": "db.example.invalid", "port": 5432, "name": "jungle" },
+  "actor": { "issuer": "approved-administration-channel", "subject": "REPLACE_WITH_APPROVED_ADMIN", "source": "REPLACE_WITH_APPROVED_CHANGE_ID" },
+  "operators": [
+    { "subject": "REPLACE_WITH_APPROVED_OPERATOR_SUB", "actions": ["quarantine.read"] },
+    { "subject": "REPLACE_WITH_APPROVED_ADMIN_SUB", "actions": ["quarantine.read", "quarantine.resolve"] }
+  ]
+}

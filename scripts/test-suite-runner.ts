@@ -67,6 +67,12 @@ postgresTargets.push({
   integration: true,
 });
 
+postgresTargets.push({
+  id: 'oidc-rollout',
+  path: 'test/integration/oidc-rollout.spec.ts',
+  integration: true,
+});
+
 const sqsTarget: TestTarget = {
   id: 'sqs-localstack',
   path: 'test/integration/sqs-localstack.spec.ts',
