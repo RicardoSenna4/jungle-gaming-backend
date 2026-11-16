@@ -54,7 +54,7 @@ export class OidcJwtVerifier implements OnModuleInit {
         process.env.OIDC_ALLOW_LOOPBACK_HTTP === 'true' &&
         ['test', 'development'].includes(process.env.NODE_ENV ?? '');
       const issuerUrl = trustedOidcUrl(issuer, loopback);
-      const jwks = process.env.OIDC_JWKS_URI;
+      const jwks = process.env.OIDC_JWKS_URI?.trim() || undefined;
       if (jwks !== undefined) trustedOidcUrl(jwks, loopback);
       const origins = (process.env.OIDC_JWKS_ALLOWED_ORIGINS ?? '')
         .split(',')

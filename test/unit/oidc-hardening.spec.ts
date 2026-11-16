@@ -132,7 +132,7 @@ describe('OIDC hardening with a real rotating HTTP IdP', () => {
   it('rejects discovery issuer mismatch, cross-origin JWKS, redirects and malformed keys', async () => {
     for (const failure of ['issuer', 'cross-origin', 'redirect', 'malformed', 'duplicate']) {
       mode = failure;
-      delete process.env.OIDC_JWKS_URI;
+      process.env.OIDC_JWKS_URI = ''; // Empty optional URI must use validated discovery.
       await expect(new OidcJwtVerifier().verify(token())).rejects.toMatchObject({
         message: 'OIDC_KEYS_UNAVAILABLE',
         retryable: true,
