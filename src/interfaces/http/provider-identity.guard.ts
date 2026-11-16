@@ -2,7 +2,9 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  Inject,
   Injectable,
+  Optional,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -17,7 +19,11 @@ export interface AuthenticatedRequest {
 
 @Injectable()
 export class ChallengeProviderIdentityGuard implements CanActivate {
-  constructor(private readonly verifier = new OidcJwtVerifier()) {}
+  private readonly verifier: OidcJwtVerifier;
+
+  constructor(@Optional() @Inject(OidcJwtVerifier) verifier?: OidcJwtVerifier) {
+    this.verifier = verifier ?? new OidcJwtVerifier();
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     if ((process.env.AUTH_MODE ?? 'challenge').toLowerCase() !== 'oidc') return true;
