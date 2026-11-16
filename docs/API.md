@@ -171,3 +171,11 @@ explícita pode cobrir vários providers; raw payload não define tenant.
 de desenvolvimento permanece público; em production + challenge o padrão retorna
 404. Consulte [configuração administrativa](ADMINISTRATIVE_ACCESS.md) para claims,
 `METRICS_ACCESS`, scopes e política de auditoria. Health continua público.
+
+### Gestão de quarentena
+
+Consulta paginada: GET `/operations/quarantine/page` com limit/cursor/status/consumer/reason.
+Histórico: GET `/operations/quarantine/:consumerName/:messageId/redrives`.
+Redrive: POST `.../redrive`, Idempotency-Key obrigatório e body justification.
+Exige papel, scope `quarantine:redrive` e grant `quarantine.redrive` específicos.
+Resolve exige note explícita e não publica. Ver [recuperação operacional](QUARANTINE_RECOVERY.md).

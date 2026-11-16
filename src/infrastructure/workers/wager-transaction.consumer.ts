@@ -15,7 +15,7 @@ import {
 } from '../../application/wager-processing.service';
 import { MetricsService } from '../telemetry/metrics.service';
 
-interface WagerTransactionEnvelope {
+export interface WagerTransactionEnvelope {
   messageId: string;
   type: 'WagerTransactionRequested';
   occurredAt: string;
@@ -84,7 +84,7 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
     const startedAt = Date.now();
     let envelope: WagerTransactionEnvelope;
     try {
-      envelope = this.parseEnvelope(message);
+      envelope = WagerTransactionConsumer.parseEnvelope(message);
     } catch {
       const quarantined = await this.quarantine(message, 'INVALID_MESSAGE');
       this.recordMessageDuration(startedAt);
@@ -211,7 +211,7 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
     this.lastDlqSampleAt = Date.now();
   }
 
-  private parseEnvelope(message: Message): WagerTransactionEnvelope {
+  static parseEnvelope(message: Message): WagerTransactionEnvelope {
     if (!message.Body) throw new Error('INVALID_MESSAGE');
     const envelope = JSON.parse(message.Body) as Partial<WagerTransactionEnvelope>;
     const data = envelope.data;

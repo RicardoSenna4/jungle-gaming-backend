@@ -1,3 +1,7 @@
+import {
+  QuarantineRedriveAttempt,
+  QuarantineOperationEvent,
+} from './mikro-orm/quarantine-redrive.entities';
 import { authorizationEntities } from './mikro-orm/authorization.entities';
 import { defineConfig } from '@mikro-orm/postgresql';
 import { Migrator } from '@mikro-orm/migrations';
@@ -23,6 +27,8 @@ export default defineConfig({
   user: process.env.DB_USER ?? 'postgres',
   password: process.env.DB_PASSWORD ?? 'postgres',
   entities: [
+    QuarantineRedriveAttempt,
+    QuarantineOperationEvent,
     ...authorizationEntities,
     ServiceMetadataEntity,
     WalletOrmEntity,

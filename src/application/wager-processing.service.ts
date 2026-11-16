@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { ConflictException, Injectable, Optional } from '@nestjs/common';
 import { EnsureRequestContext, LockMode } from '@mikro-orm/core';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { randomUUID } from 'node:crypto';
@@ -144,12 +144,16 @@ export class WagerProcessingService {
     receiveCount: number,
   ): Promise<void> {
     await this.em.transactional(async (tx) => {
-      const existing = await tx.findOne(QuarantineOrmEntity, { consumerName, messageId });
+      const existing = await tx.findOne(
+        QuarantineOrmEntity,
+        { consumerName, messageId },
+        { lockMode: LockMode.PESSIMISTIC_WRITE },
+      );
       if (existing) {
         existing.reason = reason;
         existing.rawPayload = rawPayload;
         existing.receiveCount = Math.max(existing.receiveCount + 1, receiveCount, 1);
-        existing.status = 'OPEN';
+        if (existing.status !== 'REDRIVING') existing.status = 'OPEN';
         existing.lastSeenAt = new Date();
         existing.resolvedAt = undefined;
         existing.resolutionNote = undefined;
@@ -183,13 +187,21 @@ export class WagerProcessingService {
     messageId: string,
     note: string,
   ): Promise<QuarantineView | null> {
-    const row = await this.em.findOne(QuarantineOrmEntity, { consumerName, messageId });
-    if (!row) return null;
-    row.status = 'RESOLVED';
-    row.resolvedAt = new Date();
-    row.resolutionNote = note;
-    await this.em.flush();
-    return this.toQuarantineView(row);
+    return this.em.transactional(async (tx) => {
+      const row = await tx.findOne(
+        QuarantineOrmEntity,
+        { consumerName, messageId },
+        { lockMode: LockMode.PESSIMISTIC_WRITE },
+      );
+      if (!row) return null;
+      if (row.status === 'REDRIVING')
+        throw new ConflictException({ errorCode: 'REDRIVE_IN_PROGRESS' });
+      row.status = 'RESOLVED';
+      row.resolvedAt = new Date();
+      row.resolutionNote = note;
+      await tx.flush();
+      return this.toQuarantineView(row);
+    });
   }
 
   private toQuarantineView(row: QuarantineOrmEntity): QuarantineView {

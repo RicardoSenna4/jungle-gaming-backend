@@ -113,11 +113,12 @@ jobs:
           mkdir -p .test-results
           docker compose exec -T postgres pg_dump -U postgres -d jungle --data-only \
             -t provider_principal_bindings -t provider_wallet_grants -t provider_player_grants \
-            -t operator_grants -t authorization_audit > .test-results/authorization-rollback-backup.sql
+            -t operator_grants -t authorization_audit -t quarantine_redrive_attempts -t quarantine_operation_events > .test-results/authorization-rollback-backup.sql
           test -s .test-results/authorization-rollback-backup.sql
           sha256sum .test-results/authorization-rollback-backup.sql > .test-results/authorization-rollback-backup.sha256
           sha256sum -c .test-results/authorization-rollback-backup.sha256
           export AUTHZ_ROLLBACK_BACKUP_CONFIRMED=1
+          export QUARANTINE_ROLLBACK_BACKUP_CONFIRMED=1
 
           echo "Rolling back ${migration_count} migrations one at a time on this disposable runner database"
           for ((index = 0; index < migration_count; index++)); do

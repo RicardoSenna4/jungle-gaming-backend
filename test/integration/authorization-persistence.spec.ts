@@ -323,7 +323,7 @@ describeIntegration('Authorization migration rollback on a dedicated disposable 
         return JSON.stringify(snapshots);
       }
       const original = await financialSnapshot();
-      await orm.getMigrator().up();
+      await orm.getMigrator().up({ to: 'Migration20261116120000' });
       expect(await financialSnapshot()).toBe(original);
       expect(await orm.em.fork().find(ProviderWalletGrant, {})).toHaveLength(0);
       const store = new AuthorizationStore(orm.em.fork());
@@ -408,7 +408,7 @@ describeIntegration('Authorization migration rollback on a dedicated disposable 
           async () => true,
         ),
       ).rejects.toBeInstanceOf(ServiceUnavailableException);
-      await orm.getMigrator().up();
+      await orm.getMigrator().up({ to: 'Migration20261116120000' });
       // Restore approved records verbatim; triggers append additional restoration provenance.
       for (const table of tables) {
         for (const row of backup.get(table)!) {

@@ -1,3 +1,5 @@
+import { QuarantineManagementService } from '../../application/quarantine/quarantine-management.service';
+import type { AuthenticatedRequest } from './provider-identity.guard';
 import { MetricsAccess } from './metrics-access.guard';
 import { AuthorizeResource, PublicResource } from './resource-authorization.interceptor';
 import {
@@ -14,6 +16,8 @@ import {
   NotFoundException,
   Param,
   Post,
+  Query,
+  Req,
   Res,
   ServiceUnavailableException,
   UnprocessableEntityException,
@@ -36,6 +40,7 @@ export class AppController {
     private readonly service: WagerProcessingService,
     private readonly health: HealthService,
     private readonly metrics: MetricsService,
+    private readonly quarantineManagement: QuarantineManagementService,
   ) {}
 
   @HttpCode(HttpStatus.OK)
@@ -144,21 +149,58 @@ export class AppController {
     return this.service.listQuarantine(limit);
   }
 
+  @Get('operations/quarantine/page')
+  @AuthorizeResource({ resource: 'operator', capability: 'quarantine.read' })
+  quarantinePage(
+    @Query()
+    filters: {
+      status?: string;
+      consumer?: string;
+      reason?: string;
+      limit?: string;
+      cursor?: string;
+    },
+  ) {
+    return this.quarantineManagement.page(filters);
+  }
+
+  @Get('operations/quarantine/:consumerName/:messageId/redrives')
+  @AuthorizeResource({ resource: 'operator', capability: 'quarantine.read' })
+  redriveHistory(@Param('consumerName') consumer: string, @Param('messageId') message: string) {
+    return this.quarantineManagement.history(consumer, message);
+  }
+
+  @Post('operations/quarantine/:consumerName/:messageId/redrive')
+  @AuthorizeResource({ resource: 'operator', capability: 'quarantine.redrive' })
+  redrive(
+    @Param('consumerName') consumer: string,
+    @Param('messageId') message: string,
+    @Headers('idempotency-key') key: string | undefined,
+    @Body() body: { justification?: string },
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.quarantineManagement.redrive(
+      consumer,
+      message,
+      key,
+      body?.justification,
+      request.principal,
+    );
+  }
+
   @Post('operations/quarantine/:consumerName/:messageId/resolve')
   @AuthorizeResource({ resource: 'operator', capability: 'quarantine.resolve' })
   async resolveQuarantine(
     @Param('consumerName') consumerName: string,
     @Param('messageId') messageId: string,
     @Body() body: { note?: string },
+    @Req() request: AuthenticatedRequest,
   ) {
-    const result = await this.service.resolveQuarantine(
+    return this.quarantineManagement.resolve(
       consumerName,
       messageId,
-      typeof body?.note === 'string' && body.note.trim()
-        ? body.note.trim()
-        : 'resolved by operator',
+      body?.note,
+      request.principal,
     );
-    if (!result) throw new NotFoundException({ errorCode: 'QUARANTINE_NOT_FOUND' });
-    return result;
   }
 }

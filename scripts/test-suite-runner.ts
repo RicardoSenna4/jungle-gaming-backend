@@ -73,6 +73,12 @@ postgresTargets.push({
   integration: true,
 });
 
+postgresTargets.push({
+  id: 'quarantine-migration',
+  path: 'test/integration/quarantine-migration.spec.ts',
+  integration: true,
+});
+
 const sqsTarget: TestTarget = {
   id: 'sqs-localstack',
   path: 'test/integration/sqs-localstack.spec.ts',
@@ -80,16 +86,31 @@ const sqsTarget: TestTarget = {
   sqsReal: true,
 };
 
+const quarantineTarget: TestTarget = {
+  id: 'quarantine-management',
+  path: 'test/integration/quarantine-management.spec.ts',
+  integration: true,
+  sqsReal: true,
+};
+
 const suiteTargets: Record<RequiredSuiteName, TestTarget[]> = {
   unit: [unitTarget],
   postgres: postgresTargets,
-  sqs: [sqsTarget],
+  sqs: [sqsTarget, quarantineTarget],
   concurrency: [postgresTargets[0]!],
-  recovery: [postgresTargets[2]!, postgresTargets[3]!, postgresTargets[4]!, sqsTarget],
-  all: [unitTarget, ...postgresTargets, sqsTarget],
+  recovery: [
+    postgresTargets[2]!,
+    postgresTargets[3]!,
+    postgresTargets[4]!,
+    sqsTarget,
+    quarantineTarget,
+  ],
+  all: [unitTarget, ...postgresTargets, sqsTarget, quarantineTarget],
 };
 
-const registeredIntegrationPaths = [...postgresTargets, sqsTarget].map((target) => target.path);
+const registeredIntegrationPaths = [...postgresTargets, sqsTarget, quarantineTarget].map(
+  (target) => target.path,
+);
 
 const emptySummary: JUnitSummary = { tests: 0, failures: 0, errors: 0, skipped: 0 };
 

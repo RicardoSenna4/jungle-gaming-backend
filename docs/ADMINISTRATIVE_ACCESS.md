@@ -100,3 +100,8 @@ métricas segue a matriz explícita acima.
 O [procedimento de rollout](OIDC_ROLLOUT.md) contém plano explícito, geração de
 configuração OAuth2 do coletor e aplicação atômica/idempotente dos subjects aprovados.
 A ferramenta não configura um IdP desconhecido nem descobre/aprova identidades.
+
+Tarefa 6: redrive exige também permission configurável
+`OIDC_QUARANTINE_REDRIVE_PERMISSION` (padrão `quarantine:redrive`) e grant
+`quarantine.redrive`; read/resolve não concedem redrive. Consulte
+[QUARANTINE_RECOVERY](QUARANTINE_RECOVERY.md) para leases, idempotência e estados.

@@ -9,7 +9,11 @@ export const walletCapabilities = [
   'reconcile',
 ] as const;
 export const playerCapabilities = ['wallet.create', 'wallet.opening.credit'] as const;
-export const operatorCapabilities = ['quarantine.read', 'quarantine.resolve'] as const;
+export const operatorCapabilities = [
+  'quarantine.read',
+  'quarantine.resolve',
+  'quarantine.redrive',
+] as const;
 export type WalletCapability = (typeof walletCapabilities)[number];
 export type PlayerCapability = (typeof playerCapabilities)[number];
 export type OperatorCapability = (typeof operatorCapabilities)[number];

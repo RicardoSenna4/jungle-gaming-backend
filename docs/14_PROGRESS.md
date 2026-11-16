@@ -449,3 +449,25 @@ mais mock global de fetch. Parâmetros e limites em OIDC_HARDENING.md.
 Validação final Tarefa 5: typecheck/lint/format/build passaram; **123 testes,
 17 targets, 0 falhas/erros/skips**, incluindo assinatura/claims, rotação new/same kid,
 discovery/redirect/malformed JWKS e timeout reais. Sem push/merge ou CI remoto.
+
+## 2026-11-16 — Tarefa 6: gestão durável de quarentena
+
+Worktree jungle-quarantine, branch reliability/quarantine-management, base dec7f8e.
+Consulta paginada/filtros, histórico e redrive manual com RBAC específico,
+justificativa, tentativa idempotente persistida e lease de 60s decidido no PG.
+SQL claim precede publicação; resultado incerto mantém PENDING/REDRIVING e pode ser
+retomado com mesma key/UUID após lease. Fencing de lease_token impede overwrite de
+worker antigo. At-least-once preserva IDs financeiros/Inbox; não corrige payload.
+Resolução é disposição separada, bloqueada durante REDRIVING, com evento append-only.
+Auditoria retém ator/horário/justificativa/resultado mesmo após reabertura posterior.
+Migration aditiva 130000 preserva finanças e amplia status/permissão operacional;
+rollback exige recuperação/backup. Snapshot antigo comparado estruturalmente e
+preservado; novos objetos registrados no MikroORM. CI inclui backup das tabelas novas.
+Validação: typecheck/lint/format/build passaram; **130 testes, 19 targets,
+zero falhas/erros/skips**. PostgreSQL/LocalStack reais, triggers para falhas reais de
+banco, redrive simultâneo, duplicata sem novo débito e processo Node independente
+para recuperação pós-envio. Teste de migration preserva disposições legadas e
+auditoria no up/down/up. Testes usam base isolada e bancos descartáveis próprios.
+Limites: publicação não é exactly-once nem prova sucesso financeiro; malformados
+exigem correção legítima na origem; histórico HTTP limita últimas 100 entradas,
+com auditoria integral no PG. Sem push/merge/CI remoto confirmado.

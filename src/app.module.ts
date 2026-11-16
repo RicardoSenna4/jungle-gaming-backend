@@ -1,3 +1,4 @@
+import { QuarantineManagementService } from './application/quarantine/quarantine-management.service';
 import { MetricsAccessGuard } from './interfaces/http/metrics-access.guard';
 import { AdministrativeClaimsPolicy } from './application/authorization/administrative-claims-policy';
 import { APP_INTERCEPTOR } from '@nestjs/core';
@@ -30,6 +31,7 @@ import { OidcJwtVerifier } from './interfaces/http/oidc-jwt.verifier';
   ],
   controllers: [AppController, WalletController],
   providers: [
+    QuarantineManagementService,
     AdministrativeClaimsPolicy,
     MetricsAccessGuard,
     AuthorizationStore,

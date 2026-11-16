@@ -38,6 +38,22 @@ export class SqsInfrastructureClient implements OnModuleDestroy {
     );
   }
 
+  async publishQuarantineCommand(
+    payload: string,
+    group: string,
+    attempt: string,
+    queueUrl: string,
+  ): Promise<void> {
+    await this.client.send(
+      new SendMessageCommand({
+        QueueUrl: queueUrl,
+        MessageBody: payload,
+        MessageGroupId: group,
+        MessageDeduplicationId: attempt,
+      }),
+    );
+  }
+
   async assertQueueReachable(queueUrl: string): Promise<void> {
     await this.client.send(
       new GetQueueAttributesCommand({

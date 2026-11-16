@@ -1,9 +1,11 @@
 import { ForbiddenException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import type { AuthenticatedProviderPrincipal } from '../../interfaces/http/oidc-jwt.verifier';
 
-export type AdministrativeAction = 'quarantine.read' | 'quarantine.resolve' | 'metrics.read';
+export type AdministrativeAction =
+  'quarantine.read' | 'quarantine.resolve' | 'quarantine.redrive' | 'metrics.read';
 const permissions = {
   'quarantine.read': ['OIDC_QUARANTINE_READ_PERMISSION', 'quarantine:read'],
+  'quarantine.redrive': ['OIDC_QUARANTINE_REDRIVE_PERMISSION', 'quarantine:redrive'],
   'quarantine.resolve': ['OIDC_QUARANTINE_RESOLVE_PERMISSION', 'quarantine:resolve'],
   'metrics.read': ['OIDC_METRICS_READ_PERMISSION', 'metrics:read'],
 } as const;

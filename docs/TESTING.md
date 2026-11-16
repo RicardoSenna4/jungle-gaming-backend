@@ -115,3 +115,11 @@ Os testes de guard e `oidc-hardening.spec.ts` usam um IdP HTTP real em loopback,
 com RSA 2048, JWKS rotativo, falhas, timeout e discovery adversarial. O bypass de
 TLS local exige `NODE_ENV=test|development` e `OIDC_ALLOW_LOOPBACK_HTTP=true`;
 produção ignora essa exceção. Os fixtures de integração declaram isso explicitamente.
+
+## Quarentena (Tarefa 6)
+
+`quarantine-management.spec.ts` usa PostgreSQL/LocalStack reais para paginação,
+RBAC, redrive concorrente, duplicatas financeiras, falha de envio, falha SQL antes
+do claim e após envio, e retomada por API Node em novo processo. `quarantine-migration.spec.ts`
+verifica preservação de disposições legadas e up/down/up em banco descartável,
+com recusa de rollback ativo/sem backup e restauração de grants explícitos.

@@ -20,7 +20,7 @@ export class QuarantineOrmEntity {
   receiveCount = 1;
 
   @Property({ length: 16, default: 'OPEN' })
-  status: 'OPEN' | 'RELEASED' | 'RESOLVED' = 'OPEN';
+  status: 'OPEN' | 'REDRIVING' | 'RELEASED' | 'RESOLVED' = 'OPEN';
 
   @Property({ fieldName: 'first_seen_at', onCreate: () => new Date() })
   firstSeenAt?: Date;
