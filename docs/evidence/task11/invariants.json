@@ -1,0 +1,1 @@
+{"totals":{"parallel":"3980.00","hot":"980.00","limited":"400.00","replays":"999.00","mixed":"4000.00","async":"980.00"},"counts":{"wallets":"31","transactions":"232","inbox":"20","ledger":"192","published":"424"},"asyncBatchCommitAndPublishMs":8770.553451000002,"brokerEventMessages":"424","allWalletsReconciled":true}

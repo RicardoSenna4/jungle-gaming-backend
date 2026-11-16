@@ -1,0 +1,14 @@
+{
+  "dateUTC": "2026-11-16T18:20:50Z",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "logicalCPUsVisible": 5,
+  "docker": {
+    "NCPU": 5,
+    "MemTotal": 35743748096,
+    "ServerVersion": "29.9.2",
+    "Architecture": "x86_64"
+  },
+  "apiInstances": 1,
+  "vus": 4,
+  "iterationsPerScenario": 20
+}
