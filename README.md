@@ -120,8 +120,14 @@ O CI executa todos os testes necessários com PostgreSQL e LocalStack reais. O r
 
 [Limitações](docs/OPEN_ISSUES.md) · [Checklist de entrega](docs/DELIVERY_CHECKLIST.md)
 
+## Evidências reais de execução local no Windows
+
+Além dos testes automatizados, há uma [documentação de evidências do PowerShell e Docker Desktop](docs/EXECUTION_EVIDENCE.md) com **nove capturas**: serviços API/PostgreSQL/LocalStack, filas SQS, wallet de `100.00 BRL`, BET de `25.00 BRL`, replay idempotente, REFUND, ledger, reconciliação consistente e **quatro testes de concorrência aprovados**.
+
+As capturas demonstram os resultados observados localmente; não associam sozinhas o checkout a um SHA. O [CI](docs/CI_EVIDENCE.md) mantém a referência da versão entregue.
+
 ## Documentação
 
-[Arquitetura](ARCHITECTURE.md) · [Rastreabilidade](docs/REQUIREMENTS_TRACEABILITY.md) · [API](docs/API.md) · [Como executar e usar](docs/DEMO.md) · [Evidência de CI](docs/CI_EVIDENCE.md) · [Testes](docs/TESTING.md) · [Falhas](docs/FAILURE_RECOVERY.md) · [ADRs](docs/02_ADR_REGISTER.md) · [Índice de ADRs](docs/adr/README.md) · [Auditoria](docs/FINAL_DELIVERY_AUDIT.md) · [Enunciado](CHALLENGE_SPEC.md).
+[Arquitetura](ARCHITECTURE.md) · [Rastreabilidade](docs/REQUIREMENTS_TRACEABILITY.md) · [API](docs/API.md) · [Como executar e usar](docs/DEMO.md) · [Evidência local](docs/EXECUTION_EVIDENCE.md) · [Evidência de CI](docs/CI_EVIDENCE.md) · [Testes](docs/TESTING.md) · [Falhas](docs/FAILURE_RECOVERY.md) · [ADRs](docs/02_ADR_REGISTER.md) · [Índice de ADRs](docs/adr/README.md) · [Auditoria](docs/FINAL_DELIVERY_AUDIT.md) · [Enunciado](CHALLENGE_SPEC.md).
 
 Os resultados vermelhos de commits intermediários permanecem no histórico; a entrega é demonstrada pelo **CI verde associado ao SHA submetido**, sem reescrever a história do projeto.
