@@ -106,10 +106,16 @@ const outboxCrashTarget: TestTarget = {
   integration: true,
   sqsReal: true,
 };
+const referenceTarget: TestTarget = {
+  id: 'reference-events',
+  path: 'test/integration/reference-event-consumer.spec.ts',
+  integration: true,
+  sqsReal: true,
+};
 const suiteTargets: Record<RequiredSuiteName, TestTarget[]> = {
   unit: [unitTarget],
   postgres: postgresTargets,
-  sqs: [sqsTarget, quarantineTarget, ackRecoveryTarget, outboxCrashTarget],
+  sqs: [sqsTarget, quarantineTarget, ackRecoveryTarget, outboxCrashTarget, referenceTarget],
   concurrency: [postgresTargets[0]!],
   recovery: [
     postgresTargets[2]!,
@@ -119,6 +125,7 @@ const suiteTargets: Record<RequiredSuiteName, TestTarget[]> = {
     quarantineTarget,
     ackRecoveryTarget,
     outboxCrashTarget,
+    referenceTarget,
   ],
   all: [
     unitTarget,
@@ -127,6 +134,7 @@ const suiteTargets: Record<RequiredSuiteName, TestTarget[]> = {
     quarantineTarget,
     ackRecoveryTarget,
     outboxCrashTarget,
+    referenceTarget,
   ],
 };
 
@@ -136,6 +144,7 @@ const registeredIntegrationPaths = [
   quarantineTarget,
   ackRecoveryTarget,
   outboxCrashTarget,
+  referenceTarget,
 ].map((target) => target.path);
 
 const emptySummary: JUnitSummary = { tests: 0, failures: 0, errors: 0, skipped: 0 };

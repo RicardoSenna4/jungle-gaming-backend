@@ -4,8 +4,12 @@ interface Checkpoint {
   pid: number;
   id?: string;
 }
-export function worker(environment: NodeJS.ProcessEnv, mode: string) {
-  const child = spawn(process.execPath, ['run', 'test/fixtures/outbox-publish-worker.ts', mode], {
+export function worker(
+  environment: NodeJS.ProcessEnv,
+  mode: string,
+  fixture = 'test/fixtures/outbox-publish-worker.ts',
+) {
+  const child = spawn(process.execPath, ['run', fixture, mode], {
     cwd: process.cwd(),
     env: environment,
     stdio: ['ignore', 'pipe', 'pipe'],

@@ -524,3 +524,12 @@ mesmo eventId, attempts=2 e snapshot de wallet/ledger invariável. At-least-once
 FIFO pode suprimir o segundo envio na janela de dedup. Evidência JSON em test-results.
 Typecheck/lint/format/build passaram; suíte: 132 testes/21 targets, zero falhas/skips.
 Runner all/sqs/recovery inclui o cenário e o CI existente executa/upload do target.
+
+## 2026-11-16 — Tarefa 9
+
+Exemplo isolado em examples/event-consumer: projeção didática e processed IDs no
+mesmo commit PG; ACK posterior, invalid input auditado, falhas SQL sem ACK,
+concorrência entre conexões e SIGKILL real pós-commit. Banco exclusivo do teste,
+sem alteração de saldo/ledger principal. 135 testes/22 targets passaram, sem skips;
+typecheck/lint/format/build passaram. Sem exactly-once fim a fim: efeitos externos
+exigem Outbox própria. Conflitos de payload seguem retry/DLQ configurado no broker.
