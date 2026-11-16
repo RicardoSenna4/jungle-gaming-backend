@@ -43,6 +43,12 @@ const postgresTargets: TestTarget[] = [
     integration: true,
   },
 ];
+postgresTargets.push({
+  id: 'provider-authorization-audit',
+  path: 'test/integration/provider-authorization-audit.spec.ts',
+  integration: true,
+});
+
 const sqsTarget: TestTarget = {
   id: 'sqs-localstack',
   path: 'test/integration/sqs-localstack.spec.ts',
