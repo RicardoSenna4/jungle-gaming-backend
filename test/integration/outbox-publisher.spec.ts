@@ -22,7 +22,7 @@ describeIntegration('transactional outbox publisher with PostgreSQL', () => {
   });
 
   afterEach(async () => {
-    await em.getConnection().execute('truncate table outbox_messages cascade');
+    await em.getConnection().execute('truncate table message_quarantine, outbox_messages cascade');
     em.clear();
   });
 

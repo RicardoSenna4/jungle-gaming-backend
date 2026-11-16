@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import {
   ChangeMessageVisibilityCommand,
   DeleteMessageCommand,
@@ -85,9 +86,11 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
     try {
       envelope = this.parseEnvelope(message);
     } catch {
-      this.metrics?.increment('sqs_messages_unacked_total', { reason: 'invalid_message' });
+      const quarantined = await this.quarantine(message, 'INVALID_MESSAGE');
       this.recordMessageDuration(startedAt);
-      return { acknowledged: false, failureCode: 'INVALID_MESSAGE' };
+      return quarantined
+        ? { acknowledged: true, status: 'FAILED', failureCode: 'INVALID_MESSAGE' }
+        : { acknowledged: false, failureCode: 'INVALID_MESSAGE' };
     }
     try {
       const result = await this.service.process(envelope.data.idempotencyKey, envelope.data, 0, {
@@ -119,9 +122,16 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
       };
     } catch (error) {
       if (error instanceof FinancialProcessingError) {
-        this.metrics?.increment('sqs_messages_unacked_total', { reason: error.code });
+        if (error.httpStatus >= 500) {
+          this.metrics?.increment('sqs_messages_unacked_total', { reason: error.code });
+          this.recordMessageDuration(startedAt);
+          return { acknowledged: false, failureCode: error.code };
+        }
+        const quarantined = await this.quarantine(message, error.code);
         this.recordMessageDuration(startedAt);
-        return { acknowledged: false, failureCode: error.code };
+        return quarantined
+          ? { acknowledged: true, status: 'FAILED', failureCode: error.code }
+          : { acknowledged: false, failureCode: error.code };
       }
       this.metrics?.increment('sqs_messages_unacked_total', { reason: 'infrastructure_error' });
       this.recordMessageDuration(startedAt);
@@ -243,6 +253,35 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
         process.env.ALLOWED_PROVIDER_IDS.split(',').includes(data.providerId));
     if (!valid) throw new Error('INVALID_MESSAGE');
     return envelope as WagerTransactionEnvelope;
+  }
+
+  private async quarantine(message: Message, reason: string): Promise<boolean> {
+    const rawPayload = message.Body ?? '';
+    const messageId =
+      message.MessageId ??
+      `missing-${createHash('sha256').update(rawPayload).digest('hex').slice(0, 32)}`;
+    try {
+      await this.service.quarantineMessage(
+        this.consumerName,
+        messageId,
+        reason,
+        rawPayload,
+        Math.max(1, Number(message.Attributes?.ApproximateReceiveCount ?? 1)),
+      );
+      this.metrics?.increment('sqs_messages_quarantined_total', { reason });
+      this.logger.warn(
+        JSON.stringify({
+          event: 'sqs_message_quarantined',
+          consumerName: this.consumerName,
+          messageId,
+          reason,
+        }),
+      );
+      return true;
+    } catch {
+      this.metrics?.increment('sqs_messages_unacked_total', { reason: 'quarantine_unavailable' });
+      return false;
+    }
   }
 
   private recordMessageDuration(startedAt: number): void {

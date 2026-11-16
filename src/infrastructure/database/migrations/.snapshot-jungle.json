@@ -116,6 +116,211 @@
     },
     {
       "columns": {
+        "message_id": {
+          "name": "message_id",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": 255,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "consumer_name": {
+          "name": "consumer_name",
+          "type": "varchar(128)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": 128,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "reason": {
+          "name": "reason",
+          "type": "varchar(64)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 64,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "raw_payload": {
+          "name": "raw_payload",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "receive_count": {
+          "name": "receive_count",
+          "type": "int4",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": 32,
+          "scale": 0,
+          "default": "1",
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(16)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 16,
+          "precision": null,
+          "scale": null,
+          "default": "'OPEN'",
+          "comment": null,
+          "enumItems": [
+            "OPEN",
+            "RELEASED",
+            "RESOLVED"
+          ],
+          "mappedType": "enum"
+        },
+        "first_seen_at": {
+          "name": "first_seen_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": "now()",
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": "now()",
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "resolution_note": {
+          "name": "resolution_note",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        }
+      },
+      "name": "message_quarantine",
+      "schema": "public",
+      "indexes": [
+        {
+          "columnNames": [
+            "message_id",
+            "consumer_name"
+          ],
+          "composite": true,
+          "constraint": false,
+          "keyName": "message_quarantine_pkey",
+          "unique": true,
+          "primary": true
+        },
+        {
+          "columnNames": [
+            "status",
+            "last_seen_at"
+          ],
+          "composite": true,
+          "constraint": false,
+          "keyName": "message_quarantine_status_idx",
+          "unique": false,
+          "primary": false
+        }
+      ],
+      "checks": [
+        {
+          "name": "message_quarantine_receive_count_check",
+          "columnName": "receive_count",
+          "definition": "CHECK ((receive_count > 0))",
+          "expression": "receive_count > 0"
+        }
+      ],
+      "foreignKeys": {},
+      "nativeEnums": {},
+      "comment": null
+    },
+    {
+      "columns": {
         "id": {
           "name": "id",
           "type": "uuid",
@@ -1111,7 +1316,7 @@
         },
         {
           "name": "wallet_ledger_entries_check",
-          "columnName": "amount",
+          "columnName": "balance_before",
           "definition": "CHECK (((((direction)::text = 'CREDIT'::text) AND (balance_after = (balance_before + amount))) OR (((direction)::text = 'DEBIT'::text) AND (balance_after = (balance_before - amount)))))",
           "expression": "((direction = 'CREDIT'::text) AND balance_after = (balance_before + amount))) OR (((direction = 'DEBIT'::text) AND (balance_after = (balance_before - amount)))"
         },

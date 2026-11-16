@@ -11,6 +11,7 @@ import {
   OutboxOrmEntity,
   WagerTransactionOrmEntity,
 } from '../../src/infrastructure/database/mikro-orm/entities';
+import { QuarantineOrmEntity } from '../../src/infrastructure/database/mikro-orm/quarantine.entity';
 
 const describeIntegration = process.env.RUN_INTEGRATION === '1' ? describe : describe.skip;
 
@@ -33,7 +34,7 @@ describeIntegration('SQS consumer with transactional inbox', () => {
     await em
       .getConnection()
       .execute(
-        'truncate table outbox_messages, inbox_messages, wallet_ledger_entries, wager_transactions, wallets cascade',
+        'truncate table message_quarantine, outbox_messages, inbox_messages, wallet_ledger_entries, wager_transactions, wallets cascade',
       );
   });
 
@@ -81,11 +82,21 @@ describeIntegration('SQS consumer with transactional inbox', () => {
     expect(await em.count(OutboxOrmEntity, { eventType: 'WalletBalanceChanged' })).toBe(2);
   });
 
-  it('acknowledges malformed messages without creating financial records', async () => {
-    const result = await consumer.handleMessage({ Body: JSON.stringify({ type: 'wrong' }) });
-    expect(result).toMatchObject({ acknowledged: false, failureCode: 'INVALID_MESSAGE' });
+  it('quarantines malformed messages and acknowledges only after the quarantine commit', async () => {
+    const result = await consumer.handleMessage({
+      MessageId: 'malformed-message',
+      Body: JSON.stringify({ type: 'wrong' }),
+    });
+    expect(result).toMatchObject({
+      acknowledged: true,
+      status: 'FAILED',
+      failureCode: 'INVALID_MESSAGE',
+    });
     expect(await em.count(InboxOrmEntity)).toBe(0);
     expect(await em.count(WagerTransactionOrmEntity)).toBe(0);
+    expect(
+      await em.count(QuarantineOrmEntity, { messageId: 'malformed-message', status: 'OPEN' }),
+    ).toBe(1);
   });
 
   it('rejects a provider outside the configured identity allowlist', async () => {
@@ -102,8 +113,15 @@ describeIntegration('SQS consumer with transactional inbox', () => {
           },
         }),
       });
-      expect(result).toMatchObject({ acknowledged: false, failureCode: 'INVALID_MESSAGE' });
+      expect(result).toMatchObject({
+        acknowledged: true,
+        status: 'FAILED',
+        failureCode: 'INVALID_MESSAGE',
+      });
       expect(await em.count(InboxOrmEntity)).toBe(0);
+      expect(
+        await em.count(QuarantineOrmEntity, { status: 'OPEN', reason: 'INVALID_MESSAGE' }),
+      ).toBe(1);
     } finally {
       if (original === undefined) delete process.env.ALLOWED_PROVIDER_IDS;
       else process.env.ALLOWED_PROVIDER_IDS = original;

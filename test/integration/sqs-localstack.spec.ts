@@ -45,7 +45,7 @@ describeSqs('LocalStack SQS FIFO end-to-end', () => {
     await em
       .getConnection()
       .execute(
-        'truncate table outbox_messages, inbox_messages, wallet_ledger_entries, wager_transactions, wallets cascade',
+        'truncate table message_quarantine, outbox_messages, inbox_messages, wallet_ledger_entries, wager_transactions, wallets cascade',
       );
   });
 

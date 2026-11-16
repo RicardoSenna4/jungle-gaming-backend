@@ -133,4 +133,29 @@ export class AppController {
   metricsEndpoint(): string {
     return this.metrics.renderPrometheus();
   }
+
+  @UseGuards(ChallengeProviderIdentityGuard)
+  @Get('operations/quarantine')
+  quarantine(@Headers('x-limit') rawLimit?: string) {
+    const limit = rawLimit && /^\d+$/.test(rawLimit) ? Number(rawLimit) : 100;
+    return this.service.listQuarantine(limit);
+  }
+
+  @UseGuards(ChallengeProviderIdentityGuard)
+  @Post('operations/quarantine/:consumerName/:messageId/resolve')
+  async resolveQuarantine(
+    @Param('consumerName') consumerName: string,
+    @Param('messageId') messageId: string,
+    @Body() body: { note?: string },
+  ) {
+    const result = await this.service.resolveQuarantine(
+      consumerName,
+      messageId,
+      typeof body?.note === 'string' && body.note.trim()
+        ? body.note.trim()
+        : 'resolved by operator',
+    );
+    if (!result) throw new NotFoundException({ errorCode: 'QUARANTINE_NOT_FOUND' });
+    return result;
+  }
 }

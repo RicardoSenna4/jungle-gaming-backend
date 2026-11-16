@@ -144,33 +144,32 @@ bun test
 
 ## Matriz de rastreabilidade final
 
-| Requisito | Implementação | Evidência | Estado |
-|---|---|---|---|
-| Precisão monetária | `Money` + `NUMERIC(20,2)` | testes unitários/integração | Aprovado |
-| Wallet por player/currency | constraint SQL | wallet persistence | Aprovado |
-| Ledger imutável | trigger + checks | PostgreSQL | Aprovado |
-| Idempotência HTTP | hash + snapshot | wager/concurrency/HTTP | Aprovado |
-| Lock por wallet | `FOR UPDATE` | concurrency A-D | Aprovado |
-| BET/WIN/LOSS | caso de uso central | integração | Aprovado |
-| REFUND/ROLLBACK | referência e reversão | reversal processing | Aprovado |
-| Pending reference | worker/backoff/TTL | reversal processing | Aprovado |
-| Inbox SQS | chave composta e commit | consumer integration | Aprovado em código; E2E depende CI |
-| Ack após commit | `handleAndAck` | consumer code/test | Aprovado em código; crash E2E depende CI |
-| DLQ/redrive | Compose/init policy | config + teste condicionado | Gate real depende CI |
-| Outbox atômica | persistência transacional | integração | Aprovado |
-| Publisher concorrente | claim/lease/token | PostgreSQL | Aprovado |
-| Crash do publisher | retry após falha entre send/mark | outbox integration | Aprovado por simulação equivalente |
-| OPENING events | factory + outbox | wallet persistence | Aprovado |
-| Contratos HTTP | DTOs + ValidationPipe | HTTP integration | Aprovado |
-| Health/readiness | controllers + dependency checks | unit/HTTP | Aprovado |
-| Métricas/logs | Prometheus/JSON logs | unit/smoke | Aprovado |
-| CI | workflow Bun + services + SQS E2E | GitHub Actions | Em execução após este commit |
-| Autenticação | fora do escopo pontuado | ADR | Não implementada por decisão documentada |
+| Requisito                  | Implementação                     | Evidência                   | Estado                                   |
+| -------------------------- | --------------------------------- | --------------------------- | ---------------------------------------- |
+| Precisão monetária         | `Money` + `NUMERIC(20,2)`         | testes unitários/integração | Aprovado                                 |
+| Wallet por player/currency | constraint SQL                    | wallet persistence          | Aprovado                                 |
+| Ledger imutável            | trigger + checks                  | PostgreSQL                  | Aprovado                                 |
+| Idempotência HTTP          | hash + snapshot                   | wager/concurrency/HTTP      | Aprovado                                 |
+| Lock por wallet            | `FOR UPDATE`                      | concurrency A-D             | Aprovado                                 |
+| BET/WIN/LOSS               | caso de uso central               | integração                  | Aprovado                                 |
+| REFUND/ROLLBACK            | referência e reversão             | reversal processing         | Aprovado                                 |
+| Pending reference          | worker/backoff/TTL                | reversal processing         | Aprovado                                 |
+| Inbox SQS                  | chave composta e commit           | consumer integration        | Aprovado em código; E2E depende CI       |
+| Ack após commit            | `handleAndAck`                    | consumer code/test          | Aprovado em código; crash E2E depende CI |
+| DLQ/redrive                | Compose/init policy               | config + teste condicionado | Gate real depende CI                     |
+| Outbox atômica             | persistência transacional         | integração                  | Aprovado                                 |
+| Publisher concorrente      | claim/lease/token                 | PostgreSQL                  | Aprovado                                 |
+| Crash do publisher         | retry após falha entre send/mark  | outbox integration          | Aprovado por simulação equivalente       |
+| OPENING events             | factory + outbox                  | wallet persistence          | Aprovado                                 |
+| Contratos HTTP             | DTOs + ValidationPipe             | HTTP integration            | Aprovado                                 |
+| Health/readiness           | controllers + dependency checks   | unit/HTTP                   | Aprovado                                 |
+| Métricas/logs              | Prometheus/JSON logs              | unit/smoke                  | Aprovado                                 |
+| CI                         | workflow Bun + services + SQS E2E | GitHub Actions              | Em execução após este commit             |
+| Autenticação               | fora do escopo pontuado           | ADR                         | Não implementada por decisão documentada |
 
 ## Pendências honestas
 
 A única limitação de execução local desta etapa é a ausência de Docker/LocalStack. O código e o teste E2E estão preparados, e o CI foi alterado para executar o cenário real. A prova final de redelivery, DLQ, restart e crash pós-commit/pré-ack deve ser confirmada pelo workflow com containers, sem ser inferida apenas dos testes unitários.
-
 
 ## F00 — confirmação do baseline e rastreabilidade — 2026-11-15
 
@@ -197,7 +196,6 @@ Validações locais no código F01:
 
 O README foi alinhado aos novos comandos e ao requisito de serviços. F02 e fases posteriores não foram iniciadas, respeitando o limite solicitado.
 
-
 ## Fechamento das correções — 15/11/2026
 
 - Integrado `fix/challenge-f00-f01` por fast-forward, commit `6dc45fc`.
@@ -205,3 +203,11 @@ O README foi alinhado aos novos comandos e ao requisito de serviços. F02 e fase
 - CI no commit de código `3cdb0eb`: [Actions 43760715469](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43760715469), 80 PASS, 0 FAIL, 0 SKIP, PostgreSQL e LocalStack reais e migration chain up/down/up.
 - Documentos finais: `docs/FINAL_DELIVERY_AUDIT.md`, `docs/REQUIREMENTS_TRACEABILITY.md` e `docs/DELIVERY_CHECKLIST.md`.
 - Teste de instalação limpa pelo proprietário, verificação de acesso ao repositório privado e submissão oficial **ainda pendentes**.
+
+## Formalização de FAILED e quarentena — 2026-11-16
+
+`FAILED` foi formalizado como estado terminal operacional/permanente, distinto de `REJECTED` e `PENDING_REFERENCE`, sem qualquer alteração de wallet ou ledger. Foi criada a tabela `message_quarantine`, com migration reversível, payload bruto, motivo, contador de recebimentos, status operacional e timestamps de resolução.
+
+Mensagens SQS inválidas ou permanentemente inconsistentes são persistidas na quarentena antes do ACK. Se a persistência falhar, continuam sem ACK e seguem retry/DLQ. Foram adicionados `GET /operations/quarantine` e `POST /operations/quarantine/:consumerName/:messageId/resolve`, protegidos pelo guard de identidade, além das métricas `quarantine_messages_total` e `sqs_messages_quarantined_total` e logs estruturados de quarentena.
+
+Os testes de consumer foram atualizados para comprovar ACK pós-commit da quarentena e ausência de Inbox, transação financeira e ledger.

@@ -14,10 +14,11 @@ requisito obrigatório ou falha eliminatória.
   consumidores downstream reais precisam implementar deduplicação persistente.
 - **Operação AWS:** Compose usa LocalStack; real AWS, TLS, credenciais gerenciadas,
   observabilidade centralizada e deployment HA são fora do escopo local.
-- **FAILED:** definido como terminal auditável; falhas antes de commit não podem
-  produzir registro confirmado. DLQ e outbox oferecem auditabilidade operacional;
-  política de falha permanente deverá ser ampliada em produção conforme contrato
-  de infraestrutura específico.
+- **FAILED:** formalizado como terminal operacional/permanente, sem alteração de
+  wallet ou ledger. Mensagens inválidas são persistidas em `message_quarantine`
+  antes do ACK, com consulta e resolução autenticadas; falhas transitórias
+  continuam sem ACK e seguem retry/DLQ. RBAC fino e redrive automatizado por
+  operador continuam dependentes do contrato de infraestrutura específico.
 - **WIN com referência opcional:** o processamento não depende da referência
   opcional de WIN para crédito; REFUND/ROLLBACK possuem dependência obrigatória.
   Se o provedor exigir validação de WIN referenciada, o contrato deve ser

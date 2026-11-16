@@ -35,6 +35,34 @@ contexto MikroORM independente e reprocessa pelo mesmo use case.
 Quando a referência aparece, a operação é aplicada uma vez.
 TTL ou tentativas esgotados levam a `REJECTED` e evento correspondente.
 
+## FAILED e quarentena operacional
+
+`FAILED` é um estado terminal de falha operacional/permanente, distinto de
+`REJECTED` (regra de negócio) e de `PENDING_REFERENCE` (falha recuperável de
+ordem temporal). Nenhum caminho para `FAILED` pode alterar wallet ou ledger.
+Uma transação `FAILED` deve carregar `failureCode`, `processedAt`, snapshot de
+resposta e evento de estado; replays retornam esse snapshot sem novo efeito.
+
+Mensagens SQS que não formam um envelope válido, ou que falham por erro
+permanente de contrato/idempotência, seguem este fluxo:
+
+1. o consumer grava `message_quarantine` em uma transação PostgreSQL, com
+   `messageId`, consumer, payload bruto, motivo, contador e timestamps;
+2. somente depois do commit confirma o ACK SQS;
+3. o resultado operacional é `FAILED` com `failureCode`, sem Inbox, wager ou
+   lançamento no ledger;
+4. se PostgreSQL estiver indisponível, não há ACK: a mensagem permanece em
+   retry e pode chegar à DLQ;
+5. o operador consulta `GET /operations/quarantine` e resolve o registro com
+   `POST /operations/quarantine/:consumerName/:messageId/resolve`, sempre com
+   uma nota auditável.
+
+Falhas transitórias (PostgreSQL indisponível, timeout ou erro HTTP 5xx) nunca
+são convertidas automaticamente em `FAILED`: permanecem sem ACK e usam o
+`VisibilityTimeout`/redrive da fila. Quarentena é uma decisão terminal
+durável; DLQ continua sendo o isolamento de mensagens que não puderam ser
+registradas ou reprocessadas.
+
 ## Shutdown e visibilidade
 
 No desligamento, o consumer deixa de consultar novas mensagens e espera

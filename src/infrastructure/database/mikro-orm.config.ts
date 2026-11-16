@@ -1,6 +1,7 @@
 import { defineConfig } from '@mikro-orm/postgresql';
 import { Migrator } from '@mikro-orm/migrations';
 import { ServiceMetadataEntity } from './entities/service-metadata.entity';
+import { QuarantineOrmEntity } from './mikro-orm/quarantine.entity';
 import {
   InboxOrmEntity,
   LedgerOrmEntity,
@@ -27,6 +28,7 @@ export default defineConfig({
     LedgerOrmEntity,
     InboxOrmEntity,
     OutboxOrmEntity,
+    QuarantineOrmEntity,
   ],
   migrations: {
     path: './dist/infrastructure/database/migrations',

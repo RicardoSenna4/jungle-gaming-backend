@@ -14,9 +14,14 @@ import { OutboxPublisherWorker } from './infrastructure/workers/outbox-publisher
 import { SqsInfrastructureClient } from './infrastructure/workers/sqs-infrastructure.client';
 import { HealthService } from './infrastructure/telemetry/health.service';
 import { MetricsService } from './infrastructure/telemetry/metrics.service';
+import { QuarantineOrmEntity } from './infrastructure/database/mikro-orm/quarantine.entity';
 import { OidcJwtVerifier } from './interfaces/http/oidc-jwt.verifier';
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), MikroOrmModule.forRoot(mikroOrmConfig)],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    MikroOrmModule.forRoot(mikroOrmConfig),
+    MikroOrmModule.forFeature([QuarantineOrmEntity]),
+  ],
   controllers: [AppController, WalletController],
   providers: [
     WagerProcessingService,

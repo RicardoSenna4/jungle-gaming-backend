@@ -59,7 +59,7 @@ describeIntegration('real multi-process wallet concurrency', () => {
     await em
       .getConnection()
       .execute(
-        'truncate table outbox_messages, wallet_ledger_entries, wager_transactions, wallets cascade',
+        'truncate table message_quarantine, outbox_messages, wallet_ledger_entries, wager_transactions, wallets cascade',
       );
   });
 

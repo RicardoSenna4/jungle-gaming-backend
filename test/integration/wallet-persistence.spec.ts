@@ -30,7 +30,7 @@ describeIntegration('wallet persistence with PostgreSQL', () => {
     await em
       .getConnection()
       .execute(
-        'truncate table inbox_messages, outbox_messages, wallet_ledger_entries, wager_transactions, wallets cascade',
+        'truncate table message_quarantine, inbox_messages, outbox_messages, wallet_ledger_entries, wager_transactions, wallets cascade',
       );
   });
 

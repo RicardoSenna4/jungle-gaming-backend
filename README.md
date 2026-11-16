@@ -119,6 +119,7 @@ O CI executa todos os testes necessários com PostgreSQL e LocalStack reais. O r
 - **Monólito modular:** evita transações distribuídas adicionais.
 - **Lock por wallet:** reduz concorrência sobre saldo compartilhado, sem lock global.
 - **Auth:** OIDC/JWT está implementado como modo opt-in; `AUTH_MODE=oidc` é fail-closed e o modo padrão `challenge` preserva a compatibilidade do enunciado. O [guard](src/interfaces/http/provider-identity.guard.ts) nunca trata `providerId` do body como prova de identidade.
+- **FAILED/quarentena:** mensagens inválidas ou permanentemente inconsistentes são persistidas em `message_quarantine` antes do ACK e aparecem como `FAILED` operacional; falhas transitórias permanecem sem ACK para retry/DLQ. O fluxo é descrito em [FAILURE_RECOVERY](docs/FAILURE_RECOVERY.md).
 - **Ambiente:** LocalStack, sem validar AWS gerenciado, IdP, segredos ou observabilidade centralizada.
 - **Entrega:** não prometer exactly-once nem robustez contra todos os modos de falha; a homologação humana e a submissão permanecem pendentes.
 

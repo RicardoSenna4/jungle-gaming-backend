@@ -24,6 +24,7 @@ import {
   WagerTransactionOrmEntity,
   WalletOrmEntity,
 } from '../infrastructure/database/mikro-orm/entities';
+import { QuarantineOrmEntity } from '../infrastructure/database/mikro-orm/quarantine.entity';
 
 export interface SubmitInput {
   providerId: string;
@@ -67,6 +68,18 @@ export interface WagerTransactionView {
   createdAt?: string;
   processedAt?: string;
   response?: Record<string, unknown>;
+}
+
+export interface QuarantineView {
+  messageId: string;
+  consumerName: string;
+  reason: string;
+  receiveCount: number;
+  status: string;
+  firstSeenAt?: string;
+  lastSeenAt?: string;
+  resolvedAt?: string;
+  resolutionNote?: string;
 }
 
 export class FinancialProcessingError extends Error {
@@ -121,6 +134,76 @@ export class WagerProcessingService {
       externalTransactionId,
     });
     return transaction ? this.toTransactionView(transaction) : null;
+  }
+
+  async quarantineMessage(
+    consumerName: string,
+    messageId: string,
+    reason: string,
+    rawPayload: string,
+    receiveCount: number,
+  ): Promise<void> {
+    await this.em.transactional(async (tx) => {
+      const existing = await tx.findOne(QuarantineOrmEntity, { consumerName, messageId });
+      if (existing) {
+        existing.reason = reason;
+        existing.rawPayload = rawPayload;
+        existing.receiveCount = Math.max(existing.receiveCount + 1, receiveCount, 1);
+        existing.status = 'OPEN';
+        existing.lastSeenAt = new Date();
+        existing.resolvedAt = undefined;
+        existing.resolutionNote = undefined;
+        return;
+      }
+      tx.persist(
+        tx.create(QuarantineOrmEntity, {
+          consumerName,
+          messageId,
+          reason,
+          rawPayload,
+          receiveCount: Math.max(receiveCount, 1),
+          status: 'OPEN',
+        }),
+      );
+    });
+    this.metrics?.increment('quarantine_messages_total', { reason });
+  }
+
+  async listQuarantine(limit = 100): Promise<QuarantineView[]> {
+    const rows = await this.em.find(
+      QuarantineOrmEntity,
+      {},
+      { orderBy: { lastSeenAt: 'desc' }, limit: Math.min(Math.max(limit, 1), 500) },
+    );
+    return rows.map((row) => this.toQuarantineView(row));
+  }
+
+  async resolveQuarantine(
+    consumerName: string,
+    messageId: string,
+    note: string,
+  ): Promise<QuarantineView | null> {
+    const row = await this.em.findOne(QuarantineOrmEntity, { consumerName, messageId });
+    if (!row) return null;
+    row.status = 'RESOLVED';
+    row.resolvedAt = new Date();
+    row.resolutionNote = note;
+    await this.em.flush();
+    return this.toQuarantineView(row);
+  }
+
+  private toQuarantineView(row: QuarantineOrmEntity): QuarantineView {
+    return {
+      messageId: row.messageId,
+      consumerName: row.consumerName,
+      reason: row.reason,
+      receiveCount: row.receiveCount,
+      status: row.status,
+      ...(row.firstSeenAt ? { firstSeenAt: row.firstSeenAt.toISOString() } : {}),
+      ...(row.lastSeenAt ? { lastSeenAt: row.lastSeenAt.toISOString() } : {}),
+      ...(row.resolvedAt ? { resolvedAt: row.resolvedAt.toISOString() } : {}),
+      ...(row.resolutionNote ? { resolutionNote: row.resolutionNote } : {}),
+    };
   }
 
   private toTransactionView(transaction: WagerTransactionOrmEntity): WagerTransactionView {
