@@ -16,7 +16,11 @@ import {
   OutboxOrmEntity,
   WagerTransactionOrmEntity,
 } from '../../src/infrastructure/database/mikro-orm/entities';
-import { WagerProcessingService } from '../../src/application/wager-processing.service';
+import {
+  FinancialProcessingError,
+  WagerProcessingService,
+} from '../../src/application/wager-processing.service';
+import { QuarantineOrmEntity } from '../../src/infrastructure/database/mikro-orm/quarantine.entity';
 import { OutboxPublisherWorker } from '../../src/infrastructure/workers/outbox-publisher.worker';
 import { SqsInfrastructureClient } from '../../src/infrastructure/workers/sqs-infrastructure.client';
 import { MetricsService } from '../../src/infrastructure/telemetry/metrics.service';
@@ -220,52 +224,137 @@ describeSqs('LocalStack SQS FIFO end-to-end', () => {
     }
   });
 
-  it('redrives malformed messages to the real LocalStack DLQ after retries', async () => {
+  it('persists malformed messages in quarantine before ACK without DLQ redrive', async () => {
+    const messageId = 'invalid-' + Date.now();
+    const rawPayload = JSON.stringify({
+      messageId,
+      type: 'INVALID',
+      occurredAt: new Date().toISOString(),
+    });
+    const sent = await sqs.send(
+      new SendMessageCommand({
+        QueueUrl: queueUrl,
+        MessageBody: rawPayload,
+        MessageGroupId: 'quarantine-group',
+        MessageDeduplicationId: messageId,
+      }),
+    );
+    expect(sent.MessageId).toBeTruthy();
+    const consumer = new WagerTransactionConsumer(new WagerProcessingService(em));
+    try {
+      consumer.start();
+      const deadline = Date.now() + 10_000;
+      while (
+        Date.now() < deadline &&
+        (await em.count(QuarantineOrmEntity, {
+          consumerName: 'wager-transaction-consumer-v1',
+          messageId: sent.MessageId!,
+        })) === 0
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      await consumer.stop();
+      em.clear();
+
+      const quarantined = await em.findOneOrFail(QuarantineOrmEntity, {
+        consumerName: 'wager-transaction-consumer-v1',
+        messageId: sent.MessageId!,
+      });
+      expect(quarantined.reason).toBe('INVALID_MESSAGE');
+      expect(quarantined.status).toBe('OPEN');
+      expect(quarantined.rawPayload).toBe(rawPayload);
+      expect(await em.count(InboxOrmEntity)).toBe(0);
+      expect(await em.count(WagerTransactionOrmEntity)).toBe(0);
+      expect(await em.count(LedgerOrmEntity)).toBe(0);
+
+      const remaining = await sqs.send(
+        new ReceiveMessageCommand({ QueueUrl: queueUrl, WaitTimeSeconds: 1 }),
+      );
+      expect(remaining.Messages ?? []).toHaveLength(0);
+      const dlq = await sqs.send(
+        new ReceiveMessageCommand({
+          QueueUrl: 'http://localhost:4566/000000000000/wager-transactions-dlq.fifo',
+          WaitTimeSeconds: 1,
+        }),
+      );
+      expect((dlq.Messages ?? []).some((message) => message.Body === rawPayload)).toBe(false);
+    } finally {
+      await consumer.onModuleDestroy();
+    }
+  });
+
+  it('redrives retryable processing failures to the real LocalStack DLQ without quarantine', async () => {
     const previous = process.env.SQS_VISIBILITY_TIMEOUT;
     process.env.SQS_VISIBILITY_TIMEOUT = '1';
-    const messageId = 'poison-' + Date.now();
+    const messageId = 'retryable-' + Date.now();
     const dlqUrl = 'http://localhost:4566/000000000000/wager-transactions-dlq.fifo';
-    const consumer = new WagerTransactionConsumer(new WagerProcessingService(em));
+    const payload = JSON.stringify({
+      messageId,
+      type: 'WagerTransactionRequested',
+      occurredAt: new Date().toISOString(),
+      data: {
+        providerId: 'retryable-provider',
+        externalTransactionId: messageId,
+        idempotencyKey: messageId,
+        playerId: 'retryable-player',
+        walletId: '11111111-1111-4111-8111-111111111111',
+        roundId: 'retryable-round',
+        gameId: 'retryable-game',
+        kind: 'BET',
+        money: { amount: '5.00', currency: 'BRL' },
+      },
+    });
+    let attempts = 0;
+    const unavailableService = {
+      process: async () => {
+        attempts += 1;
+        throw new FinancialProcessingError('DATABASE_UNAVAILABLE', 503);
+      },
+    } as unknown as WagerProcessingService;
+    const consumer = new WagerTransactionConsumer(unavailableService);
+    let redriven = false;
     try {
       await sqs.send(
         new SendMessageCommand({
           QueueUrl: queueUrl,
-          MessageBody: JSON.stringify({
-            messageId,
-            type: 'INVALID',
-            occurredAt: new Date().toISOString(),
-          }),
-          MessageGroupId: 'poison-group',
+          MessageBody: payload,
+          MessageGroupId: 'retryable-group',
           MessageDeduplicationId: messageId,
         }),
       );
       consumer.start();
-      let arrived = false;
-      const deadline = Date.now() + 22_000;
-      while (Date.now() < deadline && !arrived) {
+      const deadline = Date.now() + 25_000;
+      while (Date.now() < deadline && !redriven) {
         const received = await sqs.send(
           new ReceiveMessageCommand({
             QueueUrl: dlqUrl,
             WaitTimeSeconds: 1,
+            MaxNumberOfMessages: 10,
           }),
         );
-        for (const msg of received.Messages ?? []) {
-          if (msg.Body?.includes(messageId)) arrived = true;
-          if (msg.ReceiptHandle)
+        for (const message of received.Messages ?? []) {
+          if (message.Body !== payload) continue;
+          redriven = true;
+          if (message.ReceiptHandle)
             await sqs.send(
               new DeleteMessageCommand({
                 QueueUrl: dlqUrl,
-                ReceiptHandle: msg.ReceiptHandle,
+                ReceiptHandle: message.ReceiptHandle,
               }),
             );
         }
       }
-      expect(arrived).toBe(true);
+      expect(redriven).toBe(true);
+      expect(attempts).toBeGreaterThanOrEqual(3);
+      expect(await em.count(QuarantineOrmEntity)).toBe(0);
+      expect(await em.count(InboxOrmEntity)).toBe(0);
       expect(await em.count(WagerTransactionOrmEntity)).toBe(0);
+      expect(await em.count(LedgerOrmEntity)).toBe(0);
     } finally {
       await consumer.onModuleDestroy();
       if (previous === undefined) delete process.env.SQS_VISIBILITY_TIMEOUT;
       else process.env.SQS_VISIBILITY_TIMEOUT = previous;
     }
   });
+
 });

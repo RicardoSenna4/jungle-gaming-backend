@@ -11,8 +11,7 @@
    já persistidas, sem novo débito/crédito.
 
 O SQS não faz parte da transação PostgreSQL; usar FIFO não é suficiente.
-A política de redrive da fila conduz mensagens irrecuperáveis para a DLQ,
-e uma visibilidade exponencialmente ajustada reduz retries agressivos.
+A política de redrive da fila conduz mensagens **sem ACK após tentativas repetidas** para a DLQ. Mensagens inválidas **com registro durável em `message_quarantine` recebem ACK e não seguem para DLQ**. O backoff exponencial reduz retries agressivos.
 
 ## Outbox
 
@@ -59,7 +58,10 @@ permanente de contrato/idempotência, seguem este fluxo:
 
 Falhas transitórias (PostgreSQL indisponível, timeout ou erro HTTP 5xx) nunca
 são convertidas automaticamente em `FAILED`: permanecem sem ACK e usam o
-`VisibilityTimeout`/redrive da fila. Quarentena é uma decisão terminal
+`VisibilityTimeout`/redrive da fila. O teste de DLQ no LocalStack injeta uma falha
+transitória 503 em uma mensagem válida e verifica repetição e redrive reais;
+o teste de mensagem malformada comprova registro em quarentena, ACK e ausência
+de efeito financeiro. Se a quarentena falhar antes do commit, o ACK também falha. Quarentena é uma decisão terminal
 durável; DLQ continua sendo o isolamento de mensagens que não puderam ser
 registradas ou reprocessadas.
 

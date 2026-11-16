@@ -99,6 +99,53 @@ describeIntegration('SQS consumer with transactional inbox', () => {
     ).toBe(1);
   });
 
+  it('preserves a single quarantine record when an invalid message is redelivered', async () => {
+    const badMessage = {
+      MessageId: 'quarantine-redelivery',
+      Body: JSON.stringify({ type: 'wrong' }),
+    };
+    expect(await consumer.handleMessage(badMessage)).toMatchObject({
+      acknowledged: true,
+      status: 'FAILED',
+      failureCode: 'INVALID_MESSAGE',
+    });
+    expect(await consumer.handleMessage(badMessage)).toMatchObject({
+      acknowledged: true,
+      status: 'FAILED',
+      failureCode: 'INVALID_MESSAGE',
+    });
+    expect(await em.count(QuarantineOrmEntity, { messageId: 'quarantine-redelivery' })).toBe(1);
+    em.clear();
+    const record = await em.findOneOrFail(QuarantineOrmEntity, {
+      messageId: 'quarantine-redelivery',
+    });
+    expect(record.receiveCount).toBeGreaterThanOrEqual(2);
+    expect(await em.count(InboxOrmEntity)).toBe(0);
+    expect(await em.count(WagerTransactionOrmEntity)).toBe(0);
+  });
+
+  it('never acknowledges an invalid message if quarantine persistence fails', async () => {
+    const unavailableService = {
+      quarantineMessage: async () => {
+        throw new Error('database unavailable');
+      },
+    } as unknown as WagerProcessingService;
+    const failingConsumer = new WagerTransactionConsumer(unavailableService);
+    try {
+      const result = await failingConsumer.handleMessage({
+        MessageId: 'quarantine-db-down',
+        Body: JSON.stringify({ type: 'wrong' }),
+      });
+      expect(result).toMatchObject({
+        acknowledged: false,
+        failureCode: 'INVALID_MESSAGE',
+      });
+      expect(await em.count(QuarantineOrmEntity)).toBe(0);
+    } finally {
+      await failingConsumer.onModuleDestroy();
+    }
+  });
+
   it('rejects a provider outside the configured identity allowlist', async () => {
     const original = process.env.ALLOWED_PROVIDER_IDS;
     process.env.ALLOWED_PROVIDER_IDS = 'provider-allowed';

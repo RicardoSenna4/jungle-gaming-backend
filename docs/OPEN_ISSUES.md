@@ -19,6 +19,9 @@ requisito obrigatório ou falha eliminatória.
   antes do ACK, com consulta e resolução autenticadas; falhas transitórias
   continuam sem ACK e seguem retry/DLQ. RBAC fino e redrive automatizado por
   operador continuam dependentes do contrato de infraestrutura específico.
+  Mensagens permanentemente inválidas são confirmadas após persistência na
+  quarentena; **não** devem aparecer na DLQ. Falhas de processamento transitórias
+  continuam sem ACK e podem seguir para a DLQ por redrive.
 - **WIN com referência opcional:** o processamento não depende da referência
   opcional de WIN para crédito; REFUND/ROLLBACK possuem dependência obrigatória.
   Se o provedor exigir validação de WIN referenciada, o contrato deve ser
