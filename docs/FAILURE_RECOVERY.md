@@ -78,3 +78,11 @@ Diferenciar tests com falha de envio simulada de `kill -9` real.
 O gate final requer também comprovação do comportamento de reinicialização,
 redrive/DLQ e transições pendentes executadas por timer, e não só por chamadas
 manuais a métodos internos.
+
+## Evidência nova de recuperação da Inbox
+
+A Tarefa 7 automatiza interrupção por SIGKILL após commit observado por outra
+conexão e antes do DeleteMessage, com redelivery após visibilidade expirar.
+[Protocolo, isolamento e limites](INBOX_COMMIT_ACK_RECOVERY.md).
+Redrive administrativo da quarentena segue [QUARANTINE_RECOVERY](QUARANTINE_RECOVERY.md)
+e não substitui essa prova de redelivery/ACK nem implica reparo financeiro.

@@ -96,7 +96,7 @@ jobs:
           exit 1
       - name: Apply all migrations to the disposable database
         run: bun run db:migrate
-      - name: Run every required suite (unit, PostgreSQL, concurrency, recovery and SQS)
+      - name: Run every required suite including real commit-before-ACK process crash
         run: bun run test:all
       - name: Verify no migration remains pending
         run: bun run db:migration:check

@@ -191,6 +191,10 @@ export class WagerTransactionConsumer implements OnModuleInit, OnModuleDestroy {
       });
       return;
     }
+    await this.acknowledgeMessage(message);
+  }
+
+  protected async acknowledgeMessage(message: Message): Promise<void> {
     await this.sqs.send(
       new DeleteMessageCommand({ QueueUrl: this.queueUrl, ReceiptHandle: message.ReceiptHandle }),
     );

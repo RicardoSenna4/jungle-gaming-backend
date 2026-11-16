@@ -123,3 +123,11 @@ RBAC, redrive concorrente, duplicatas financeiras, falha de envio, falha SQL ant
 do claim e após envio, e retomada por API Node em novo processo. `quarantine-migration.spec.ts`
 verifica preservação de disposições legadas e up/down/up em banco descartável,
 com recusa de rollback ativo/sem backup e restauração de grants explícitos.
+
+## Crash real entre commit e ACK (Tarefa 7)
+
+Target obrigatório `inbox-commit-ack` em all/sqs/recovery. Banco/fila exclusivos,
+processos independentes, SIGKILL real antes do DeleteMessage, visibilidade real,
+redelivery e snapshot financeiro invariável. Veja [protocolo e evidências](INBOX_COMMIT_ACK_RECOVERY.md).
+O CI publica JUnit/log e `.test-results/inbox-commit-ack-evidence.json` com SHA/base,
+status dirty e hashes dos arquivos, sem atribuir validação de worktree sujo a um SHA limpo.

@@ -93,10 +93,17 @@ const quarantineTarget: TestTarget = {
   sqsReal: true,
 };
 
+const ackRecoveryTarget: TestTarget = {
+  id: 'inbox-commit-ack',
+  path: 'test/integration/inbox-commit-ack.spec.ts',
+  integration: true,
+  sqsReal: true,
+};
+
 const suiteTargets: Record<RequiredSuiteName, TestTarget[]> = {
   unit: [unitTarget],
   postgres: postgresTargets,
-  sqs: [sqsTarget, quarantineTarget],
+  sqs: [sqsTarget, quarantineTarget, ackRecoveryTarget],
   concurrency: [postgresTargets[0]!],
   recovery: [
     postgresTargets[2]!,
@@ -104,13 +111,17 @@ const suiteTargets: Record<RequiredSuiteName, TestTarget[]> = {
     postgresTargets[4]!,
     sqsTarget,
     quarantineTarget,
+    ackRecoveryTarget,
   ],
-  all: [unitTarget, ...postgresTargets, sqsTarget, quarantineTarget],
+  all: [unitTarget, ...postgresTargets, sqsTarget, quarantineTarget, ackRecoveryTarget],
 };
 
-const registeredIntegrationPaths = [...postgresTargets, sqsTarget, quarantineTarget].map(
-  (target) => target.path,
-);
+const registeredIntegrationPaths = [
+  ...postgresTargets,
+  sqsTarget,
+  quarantineTarget,
+  ackRecoveryTarget,
+].map((target) => target.path);
 
 const emptySummary: JUnitSummary = { tests: 0, failures: 0, errors: 0, skipped: 0 };
 

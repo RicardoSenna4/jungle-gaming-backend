@@ -475,3 +475,43 @@ Revisão do snapshot da Tarefa 6: introspecção PG mudou também o rótulo de c
 associado a CHECKs multicoluna, sem alterar suas expressões. O snapshot foi atualizado
 somente para status/permissão ampliados, índice de paginação e duas tabelas novas;
 entradas financeiras anteriores preservadas integralmente. Sem novo SQL/DDL.
+
+## 2026-11-16 — Tarefa 7: processo real interrompido entre commit e ACK
+
+Worktree jungle-inbox-recovery, branch test/inbox-commit-ack-recovery. Contém os
+commits das Tarefas 1–6 e ajustes de hardening IPv6/discovery vazio. Teste novo usa
+pollLoop/handleMessage reais, subclass de teste apenas no limite de ACK e SIGKILL
+real do processo filho. Pai confirma commit por outra conexão; novo processo com
+novo ORM consome a mesma mensagem após visibilidade expirar e confirma ACK real.
+Wallet, transação, Inbox, ledger e Outbox permanecem idênticos ao snapshot anterior.
+
+Não há toggle de pausa em produção. Fixture fora de src/dist exige alvos locais,
+run/database/queue exatos, NODE_ENV=test e dummy credentials; test/ é excluído do
+contexto Docker. Exportação real do contexto com Docker confirmou ausência de test/.
+Dockerfile preserva frozen lockfile com concorrência de download limitada a 1.
+
+Artefato .test-results/inbox-commit-ack-evidence.json registra SIGKILL, PIDs distintos,
+receive count 1→2, saldo 75.00/version 2, uma BET/Inbox, dois lançamentos e ACK.
+Registra baseCommit, dirty e hashes dos fontes para não fingir execução em SHA limpo.
+Target está em all/sqs/recovery e no test:all do CI, com upload dos artefatos.
+
+O build integral da imagem neste runtime ficou pendente na instalação Bun. Houve
+SELF_SIGNED_CERT_IN_CHAIN no probe inicial; montando a CA oficial de sessão como
+secret (orientação cloud-environment-runtime) o probe registry retornou 200, sem
+desativar TLS. A instalação no build continuou sem progresso e foi interrompida;
+nenhuma imagem completa é declarada validada. Contexto Docker e ausência do fixture
+foram verificados separadamente, sem etapa de instalação/rede. TypeScript e o teste
+real de crash não dependem desse build. CI remoto ainda precisa ser confirmado.
+Validação final combinada Tarefas 5–7: typecheck/lint/format/build passaram;
+**131 testes em 20 targets, 0 falhas/erros/skips**, PG/LocalStack reais. A última
+regressão reproduziu e corrigiu inversão de locks entre claim/finalização; teste
+agora usa quatro redrives simultâneos e mantém apenas 201/409 como resultados válidos.
+Hardening final inclui IPv6 comprimido reservado e JWKS_URI vazio preservando
+discovery validado. Não houve alteração de Money ou regras financeiras.
+
+Após solicitação de visibilidade no GitHub, branches das tarefas 5 e 6 foram
+publicadas com git push normal, sem force e sem alteração da main. Branch consolidada
+da Tarefa 7 será publicada após este commit. API de consulta ao Actions retornou
+CONNECT 403 do proxy; não se presume aprovação do CI. Os runs podem ser consultados
+na interface GitHub das branches. Evidência local de crash mantém hash dos fontes
+exercitados e sinal/processos reais; imagem completa permanece pendente como descrito.

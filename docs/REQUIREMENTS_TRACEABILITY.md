@@ -70,3 +70,8 @@ Tarefas 3–4: cobertura financeira HTTP em `financial-resource-authorization.sp
 papéis/permissões, métricas e auditoria em `administrative-role-access.spec.ts`,
 com política/configuração em [ADMINISTRATIVE_ACCESS](ADMINISTRATIVE_ACCESS.md).
 Os resultados locais estão no registro de progresso; CI remoto não foi presumido.
+
+Tarefas 5–7: [hardening OIDC](OIDC_HARDENING.md), [gestão de quarentena](QUARANTINE_RECOVERY.md)
+e [prova commit/ACK](INBOX_COMMIT_ACK_RECOVERY.md). A prova local nova cobre
+especificamente SIGKILL pós-commit/pré-ACK da Inbox com PG/LocalStack e processos
+independentes; não estende automaticamente a evidência à janela send/mark da Outbox.

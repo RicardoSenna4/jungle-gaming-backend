@@ -5,3 +5,6 @@ dist
 coverage
 .test-results
 package-lock.json
+
+# Test-only process harnesses must not ship in the application image.
+test/
