@@ -6,6 +6,235 @@
   "tables": [
     {
       "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        },
+        "actor_issuer": {
+          "name": "actor_issuer",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "actor_subject": {
+          "name": "actor_subject",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "resource": {
+          "name": "resource",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "decision": {
+          "name": "decision",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [
+            "allow",
+            "deny",
+            "grant",
+            "revoke"
+          ],
+          "mappedType": "enum"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": "clock_timestamp()",
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        }
+      },
+      "name": "authorization_audit",
+      "schema": "public",
+      "indexes": [
+        {
+          "columnNames": [
+            "actor_issuer",
+            "actor_subject",
+            "occurred_at"
+          ],
+          "composite": true,
+          "constraint": false,
+          "keyName": "authorization_audit_actor_idx",
+          "unique": false,
+          "primary": false
+        },
+        {
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": false,
+          "keyName": "authorization_audit_pkey",
+          "unique": true,
+          "primary": true
+        },
+        {
+          "columnNames": [
+            "resource",
+            "occurred_at"
+          ],
+          "composite": true,
+          "constraint": false,
+          "keyName": "authorization_audit_resource_idx",
+          "unique": false,
+          "primary": false
+        }
+      ],
+      "checks": [
+        {
+          "name": "authorization_audit_actor_issuer_check",
+          "columnName": "actor_issuer",
+          "definition": "CHECK ((btrim(actor_issuer) <> ''::text))",
+          "expression": "btrim(actor_issuer) <> ''::text"
+        },
+        {
+          "name": "authorization_audit_actor_subject_check",
+          "columnName": "actor_subject",
+          "definition": "CHECK ((btrim(actor_subject) <> ''::text))",
+          "expression": "btrim(actor_subject) <> ''::text"
+        },
+        {
+          "name": "authorization_audit_source_check",
+          "columnName": "source",
+          "definition": "CHECK ((btrim(source) <> ''::text))",
+          "expression": "btrim(source) <> ''::text"
+        }
+      ],
+      "foreignKeys": {},
+      "nativeEnums": {},
+      "comment": null
+    },
+    {
+      "columns": {
         "message_id": {
           "name": "message_id",
           "type": "text",
@@ -321,6 +550,198 @@
     },
     {
       "columns": {
+        "issuer": {
+          "name": "issuer",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [
+            "quarantine.read",
+            "quarantine.resolve"
+          ],
+          "mappedType": "enum"
+        },
+        "granted_at": {
+          "name": "granted_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": "clock_timestamp()",
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "actor_issuer": {
+          "name": "actor_issuer",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "actor_subject": {
+          "name": "actor_subject",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        }
+      },
+      "name": "operator_grants",
+      "schema": "public",
+      "indexes": [
+        {
+          "columnNames": [
+            "issuer",
+            "subject",
+            "action"
+          ],
+          "composite": true,
+          "constraint": false,
+          "keyName": "operator_grants_pkey",
+          "unique": true,
+          "primary": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "operator_grants_actor_issuer_check",
+          "columnName": "actor_issuer",
+          "definition": "CHECK ((btrim(actor_issuer) <> ''::text))",
+          "expression": "btrim(actor_issuer) <> ''::text"
+        },
+        {
+          "name": "operator_grants_actor_subject_check",
+          "columnName": "actor_subject",
+          "definition": "CHECK ((btrim(actor_subject) <> ''::text))",
+          "expression": "btrim(actor_subject) <> ''::text"
+        },
+        {
+          "name": "operator_grants_check",
+          "columnName": "revoked_at",
+          "definition": "CHECK ((revoked_at >= granted_at))",
+          "expression": "revoked_at >= granted_at"
+        },
+        {
+          "name": "operator_grants_issuer_check",
+          "columnName": "issuer",
+          "definition": "CHECK ((btrim(issuer) <> ''::text))",
+          "expression": "btrim(issuer) <> ''::text"
+        },
+        {
+          "name": "operator_grants_source_check",
+          "columnName": "source",
+          "definition": "CHECK ((btrim(source) <> ''::text))",
+          "expression": "btrim(source) <> ''::text"
+        },
+        {
+          "name": "operator_grants_subject_check",
+          "columnName": "subject",
+          "definition": "CHECK ((btrim(subject) <> ''::text))",
+          "expression": "btrim(subject) <> ''::text"
+        }
+      ],
+      "foreignKeys": {},
+      "nativeEnums": {},
+      "comment": null
+    },
+    {
+      "columns": {
         "id": {
           "name": "id",
           "type": "uuid",
@@ -542,6 +963,630 @@
         }
       ],
       "foreignKeys": {},
+      "nativeEnums": {},
+      "comment": null
+    },
+    {
+      "columns": {
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "player_id": {
+          "name": "player_id",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "currency": {
+          "name": "currency",
+          "type": "varchar(3)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": 3,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "capability": {
+          "name": "capability",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [
+            "wallet.create",
+            "wallet.opening.credit"
+          ],
+          "mappedType": "enum"
+        },
+        "granted_at": {
+          "name": "granted_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": "clock_timestamp()",
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "actor_issuer": {
+          "name": "actor_issuer",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "actor_subject": {
+          "name": "actor_subject",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        }
+      },
+      "name": "provider_player_grants",
+      "schema": "public",
+      "indexes": [
+        {
+          "columnNames": [
+            "provider_id",
+            "player_id",
+            "currency",
+            "capability"
+          ],
+          "composite": true,
+          "constraint": false,
+          "keyName": "provider_player_grants_pkey",
+          "unique": true,
+          "primary": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "provider_player_grants_actor_issuer_check",
+          "columnName": "actor_issuer",
+          "definition": "CHECK ((btrim(actor_issuer) <> ''::text))",
+          "expression": "btrim(actor_issuer) <> ''::text"
+        },
+        {
+          "name": "provider_player_grants_actor_subject_check",
+          "columnName": "actor_subject",
+          "definition": "CHECK ((btrim(actor_subject) <> ''::text))",
+          "expression": "btrim(actor_subject) <> ''::text"
+        },
+        {
+          "name": "provider_player_grants_check",
+          "columnName": "revoked_at",
+          "definition": "CHECK ((revoked_at >= granted_at))",
+          "expression": "revoked_at >= granted_at"
+        },
+        {
+          "name": "provider_player_grants_currency_check",
+          "columnName": "currency",
+          "definition": "CHECK (((currency)::text ~ '^[A-Z]{3}$'::text))",
+          "expression": "currency ~ '^[A-Z]{3}$'::text"
+        },
+        {
+          "name": "provider_player_grants_player_id_check",
+          "columnName": "player_id",
+          "definition": "CHECK ((btrim(player_id) <> ''::text))",
+          "expression": "btrim(player_id) <> ''::text"
+        },
+        {
+          "name": "provider_player_grants_provider_id_check",
+          "columnName": "provider_id",
+          "definition": "CHECK (((btrim(provider_id) <> ''::text) AND (provider_id !~ '^__'::text)))",
+          "expression": "(btrim(provider_id) <> ''::text) AND (provider_id !~ '^__'::text)"
+        },
+        {
+          "name": "provider_player_grants_source_check",
+          "columnName": "source",
+          "definition": "CHECK ((btrim(source) <> ''::text))",
+          "expression": "btrim(source) <> ''::text"
+        }
+      ],
+      "foreignKeys": {},
+      "nativeEnums": {},
+      "comment": null
+    },
+    {
+      "columns": {
+        "issuer": {
+          "name": "issuer",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "granted_at": {
+          "name": "granted_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": "clock_timestamp()",
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "actor_issuer": {
+          "name": "actor_issuer",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "actor_subject": {
+          "name": "actor_subject",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        }
+      },
+      "name": "provider_principal_bindings",
+      "schema": "public",
+      "indexes": [
+        {
+          "columnNames": [
+            "issuer",
+            "subject",
+            "provider_id"
+          ],
+          "composite": true,
+          "constraint": false,
+          "keyName": "provider_principal_bindings_pkey",
+          "unique": true,
+          "primary": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "provider_principal_bindings_actor_issuer_check",
+          "columnName": "actor_issuer",
+          "definition": "CHECK ((btrim(actor_issuer) <> ''::text))",
+          "expression": "btrim(actor_issuer) <> ''::text"
+        },
+        {
+          "name": "provider_principal_bindings_actor_subject_check",
+          "columnName": "actor_subject",
+          "definition": "CHECK ((btrim(actor_subject) <> ''::text))",
+          "expression": "btrim(actor_subject) <> ''::text"
+        },
+        {
+          "name": "provider_principal_bindings_check",
+          "columnName": "granted_at",
+          "definition": "CHECK ((revoked_at >= granted_at))",
+          "expression": "revoked_at >= granted_at"
+        },
+        {
+          "name": "provider_principal_bindings_issuer_check",
+          "columnName": "issuer",
+          "definition": "CHECK ((btrim(issuer) <> ''::text))",
+          "expression": "btrim(issuer) <> ''::text"
+        },
+        {
+          "name": "provider_principal_bindings_provider_id_check",
+          "columnName": "provider_id",
+          "definition": "CHECK (((btrim(provider_id) <> ''::text) AND (provider_id !~ '^__'::text)))",
+          "expression": "(btrim(provider_id) <> ''::text) AND (provider_id !~ '^__'::text)"
+        },
+        {
+          "name": "provider_principal_bindings_source_check",
+          "columnName": "source",
+          "definition": "CHECK ((btrim(source) <> ''::text))",
+          "expression": "btrim(source) <> ''::text"
+        },
+        {
+          "name": "provider_principal_bindings_subject_check",
+          "columnName": "subject",
+          "definition": "CHECK ((btrim(subject) <> ''::text))",
+          "expression": "btrim(subject) <> ''::text"
+        }
+      ],
+      "foreignKeys": {},
+      "nativeEnums": {},
+      "comment": null
+    },
+    {
+      "columns": {
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "wallet_id": {
+          "name": "wallet_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        },
+        "capability": {
+          "name": "capability",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [
+            "balance.read",
+            "wager.submit",
+            "transaction.read_own",
+            "ledger.read_all",
+            "reconcile"
+          ],
+          "mappedType": "enum"
+        },
+        "granted_at": {
+          "name": "granted_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": "clock_timestamp()",
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "actor_issuer": {
+          "name": "actor_issuer",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "actor_subject": {
+          "name": "actor_subject",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        }
+      },
+      "name": "provider_wallet_grants",
+      "schema": "public",
+      "indexes": [
+        {
+          "columnNames": [
+            "provider_id",
+            "wallet_id",
+            "capability"
+          ],
+          "composite": true,
+          "constraint": false,
+          "keyName": "provider_wallet_grants_pkey",
+          "unique": true,
+          "primary": true
+        },
+        {
+          "columnNames": [
+            "wallet_id",
+            "provider_id"
+          ],
+          "composite": true,
+          "constraint": false,
+          "keyName": "provider_wallet_grants_wallet_idx",
+          "unique": false,
+          "primary": false
+        }
+      ],
+      "checks": [
+        {
+          "name": "provider_wallet_grants_actor_issuer_check",
+          "columnName": "actor_issuer",
+          "definition": "CHECK ((btrim(actor_issuer) <> ''::text))",
+          "expression": "btrim(actor_issuer) <> ''::text"
+        },
+        {
+          "name": "provider_wallet_grants_actor_subject_check",
+          "columnName": "actor_subject",
+          "definition": "CHECK ((btrim(actor_subject) <> ''::text))",
+          "expression": "btrim(actor_subject) <> ''::text"
+        },
+        {
+          "name": "provider_wallet_grants_check",
+          "columnName": "granted_at",
+          "definition": "CHECK ((revoked_at >= granted_at))",
+          "expression": "revoked_at >= granted_at"
+        },
+        {
+          "name": "provider_wallet_grants_provider_id_check",
+          "columnName": "provider_id",
+          "definition": "CHECK (((btrim(provider_id) <> ''::text) AND (provider_id !~ '^__'::text)))",
+          "expression": "(btrim(provider_id) <> ''::text) AND (provider_id !~ '^__'::text)"
+        },
+        {
+          "name": "provider_wallet_grants_source_check",
+          "columnName": "source",
+          "definition": "CHECK ((btrim(source) <> ''::text))",
+          "expression": "btrim(source) <> ''::text"
+        }
+      ],
+      "foreignKeys": {
+        "provider_wallet_grants_wallet_id_fkey": {
+          "columnNames": [
+            "wallet_id"
+          ],
+          "constraintName": "provider_wallet_grants_wallet_id_fkey",
+          "localTableName": "public.provider_wallet_grants",
+          "referencedTableName": "public.wallets",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "updateRule": "no action",
+          "deleteRule": "restrict"
+        }
+      },
       "nativeEnums": {},
       "comment": null
     },

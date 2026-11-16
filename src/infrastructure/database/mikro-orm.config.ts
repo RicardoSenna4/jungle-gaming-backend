@@ -1,3 +1,4 @@
+import { authorizationEntities } from './mikro-orm/authorization.entities';
 import { defineConfig } from '@mikro-orm/postgresql';
 import { Migrator } from '@mikro-orm/migrations';
 import { ServiceMetadataEntity } from './entities/service-metadata.entity';
@@ -22,6 +23,7 @@ export default defineConfig({
   user: process.env.DB_USER ?? 'postgres',
   password: process.env.DB_PASSWORD ?? 'postgres',
   entities: [
+    ...authorizationEntities,
     ServiceMetadataEntity,
     WalletOrmEntity,
     WagerTransactionOrmEntity,
