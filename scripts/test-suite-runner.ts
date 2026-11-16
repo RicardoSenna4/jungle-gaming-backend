@@ -100,10 +100,16 @@ const ackRecoveryTarget: TestTarget = {
   sqsReal: true,
 };
 
+const outboxCrashTarget: TestTarget = {
+  id: 'outbox-publish-recovery',
+  path: 'test/integration/outbox-publish-recovery.spec.ts',
+  integration: true,
+  sqsReal: true,
+};
 const suiteTargets: Record<RequiredSuiteName, TestTarget[]> = {
   unit: [unitTarget],
   postgres: postgresTargets,
-  sqs: [sqsTarget, quarantineTarget, ackRecoveryTarget],
+  sqs: [sqsTarget, quarantineTarget, ackRecoveryTarget, outboxCrashTarget],
   concurrency: [postgresTargets[0]!],
   recovery: [
     postgresTargets[2]!,
@@ -112,8 +118,16 @@ const suiteTargets: Record<RequiredSuiteName, TestTarget[]> = {
     sqsTarget,
     quarantineTarget,
     ackRecoveryTarget,
+    outboxCrashTarget,
   ],
-  all: [unitTarget, ...postgresTargets, sqsTarget, quarantineTarget, ackRecoveryTarget],
+  all: [
+    unitTarget,
+    ...postgresTargets,
+    sqsTarget,
+    quarantineTarget,
+    ackRecoveryTarget,
+    outboxCrashTarget,
+  ],
 };
 
 const registeredIntegrationPaths = [
@@ -121,6 +135,7 @@ const registeredIntegrationPaths = [
   sqsTarget,
   quarantineTarget,
   ackRecoveryTarget,
+  outboxCrashTarget,
 ].map((target) => target.path);
 
 const emptySummary: JUnitSummary = { tests: 0, failures: 0, errors: 0, skipped: 0 };

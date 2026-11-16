@@ -116,7 +116,7 @@ export class OutboxPublisherWorker implements OnModuleInit, OnModuleDestroy {
     );
   }
 
-  private async markPublished(id: string, claimToken: string): Promise<void> {
+  protected async markPublished(id: string, claimToken: string): Promise<void> {
     await this.em.getConnection().execute(
       `update outbox_messages
           set published_at = now(), next_attempt_at = null,

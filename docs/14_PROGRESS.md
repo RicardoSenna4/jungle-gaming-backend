@@ -515,3 +515,12 @@ da Tarefa 7 será publicada após este commit. API de consulta ao Actions retorn
 CONNECT 403 do proxy; não se presume aprovação do CI. Os runs podem ser consultados
 na interface GitHub das branches. Evidência local de crash mantém hash dos fontes
 exercitados e sinal/processos reais; imagem completa permanece pendente como descrito.
+
+## 2026-11-16 — Tarefa 8
+
+Branch test/outbox-publish-recovery: publisher independente sofre SIGKILL após
+recepção confirmada no SQS e antes de published_at. Recuperação após lease real,
+mesmo eventId, attempts=2 e snapshot de wallet/ledger invariável. At-least-once;
+FIFO pode suprimir o segundo envio na janela de dedup. Evidência JSON em test-results.
+Typecheck/lint/format/build passaram; suíte: 132 testes/21 targets, zero falhas/skips.
+Runner all/sqs/recovery inclui o cenário e o CI existente executa/upload do target.
