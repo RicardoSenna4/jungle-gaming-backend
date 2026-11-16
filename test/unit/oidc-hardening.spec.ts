@@ -173,8 +173,13 @@ describe('OIDC hardening with a real rotating HTTP IdP', () => {
       'fc00::1',
       'fe80::1',
       '2002:7f00:1::',
+      '2001::1',
+      '2001:2::1',
+      '2001:db8::1',
+      '3fff::1',
     ])
       expect(publicOidcAddress(address)).toBe(false);
+    expect(publicOidcAddress('2001:4860:4860::8888')).toBe(true);
     for (const url of [
       'http://public.test/keys',
       'https://user:pass@public.test/keys',

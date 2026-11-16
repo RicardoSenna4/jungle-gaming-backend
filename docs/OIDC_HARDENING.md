@@ -48,3 +48,7 @@ Limites: não há introspecção/revogação imediata por jti; tokens válidos s
 com skew. Chave retirada pode permanecer aceita até refresh/TTL; ajustar overlap e
 TTL ao risco operacional. Não se afirma teste de IdP gerenciado externo ou proxy/VPN
 real a partir dos testes locais. Use rate limit/egress e IdP confiável no deploy.
+
+IPv6 é comparado por prefixos binários, inclusive formas comprimidas. Teredo,
+benchmark/documentação, 6to4 e endereços com zone ID não entram como destinos
+públicos; um caso de IPv6 global é verificado positivamente nos testes.
