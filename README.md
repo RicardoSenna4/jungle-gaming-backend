@@ -38,13 +38,17 @@ Alternativamente, rode a API com Bun no host e apenas Postgres/LocalStack no Com
 
 ### OIDC/JWT
 
-O modo de desafio permanece compatível com `AUTH_MODE=challenge`. Para habilitar autenticação real, configure `AUTH_MODE=oidc`, `OIDC_ISSUER_URL`, `OIDC_AUDIENCE` e `OIDC_JWKS_URI` (ou use descoberta OIDC). O guard valida tokens Bearer RS256, `kid`, assinatura via JWKS, issuer, audience, `exp`/`nbf` e a claim configurada em `OIDC_PROVIDER_ID_CLAIM` (padrão `providerId`). Rotas de negócio exigem o token; health e métricas permanecem públicos. O `providerId` autenticado precisa coincidir com o provider informado no body ou na URL.
+O modo de desafio permanece compatível com `AUTH_MODE=challenge`. Para habilitar autenticação real, configure `AUTH_MODE=oidc`, `OIDC_ISSUER_URL`, `OIDC_AUDIENCE` e `OIDC_JWKS_URI` (ou use descoberta OIDC). O guard valida tokens Bearer RS256, `kid`, assinatura via JWKS, issuer, audience, `exp`/`nbf` e a claim configurada em `OIDC_PROVIDER_ID_CLAIM` (padrão `providerId`). Rotas de negócio exigem o token; health permanece público; métricas seguem política operacional específica. O `providerId` autenticado precisa coincidir com o provider informado no body ou na URL.
 
 Em OIDC, identidade e permissões por recurso são verificadas no PostgreSQL,
 conforme a [ADR-019](docs/adr/019-provider-resource-authorization.md). Provisione
 vínculos de identidade e grants explícitos antes de habilitar clientes: recursos
 legados não são atribuídos automaticamente. Wallets continuam compartilháveis
 entre múltiplos providers autorizados; ledger completo exige permissão específica.
+
+Quarentena em OIDC exige papel/permissão JWT e delegação persistida. Métricas
+exigem papel operacional e `metrics:read`; challenge local permanece compatível.
+Veja [política administrativa e métricas](docs/ADMINISTRATIVE_ACCESS.md).
 
 ## Arquitetura
 

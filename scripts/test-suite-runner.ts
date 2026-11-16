@@ -61,6 +61,12 @@ postgresTargets.push({
   integration: true,
 });
 
+postgresTargets.push({
+  id: 'administrative-role-access',
+  path: 'test/integration/administrative-role-access.spec.ts',
+  integration: true,
+});
+
 const sqsTarget: TestTarget = {
   id: 'sqs-localstack',
   path: 'test/integration/sqs-localstack.spec.ts',

@@ -173,7 +173,7 @@ permissões de providers. `challenge` mantém os contratos atuais para o desafio
 | GET `/operations/quarantine` / fila operacional global | Provider comum: 403, mesmo com todos os grants de wallet | 403; raw payload não concede vínculo | `quarantine.read`; resposta sem raw payload e sem segredos |
 | POST `/operations/quarantine/:consumerName/:messageId/resolve` / mensagem | Provider comum: 403 | 403, nota não fornece identidade | `quarantine.resolve`; gravar ator/correlação no mesmo commit; 404 inexistente |
 | GET `/health/live`, `/health/ready` | Público, sem mudança | Público | Público |
-| GET `/metrics` | Público atualmente; exposição limitada pela infraestrutura em produção | Idem | Observabilidade em rede dedicada |
+| GET `/metrics` | Em OIDC: papel operacional e permission JWT `metrics:read` | Sem papel/permission: 403; sem token: 401 | Scrape global autorizado por claims; challenge local público, challenge production desabilitado por padrão |
 
 Quarentena não possui endpoint de redrive neste momento. Resolução não deve ganhar
 redrive como efeito colateral. Não introduzir um módulo de propriedade de wallet.
@@ -407,3 +407,24 @@ real. Compartilhar wallet não concede leitura das transações privadas de outr
 provider. A referência de REFUND/ROLLBACK continua sujeita às regras financeiras
 do mesmo provider/player/wallet/moeda/rodada. Nenhuma migration, regra financeira
 ou algoritmo de saldo foi alterado na Tarefa 3.
+
+## Tarefa 4 — Papéis, permissões assinadas e métricas
+
+A autorização operacional passa a exigir a interseção de papel e permissão em JWT
+validado com o grant persistido da ação. Operador e administrador não herdam acesso
+financeiro nem podem usar body/headers para elevar privilégio. A política reutilizável
+`AdministrativeClaimsPolicy` é aplicada antes da consulta ao grant operacional;
+negações autenticadas continuam auditadas. A delegação de quarentena permanece
+global explícita; raw payload não fornece vínculo confiável com tenant.
+
+A política de métricas anteriormente pública é substituída por `MetricsAccessGuard`:
+OIDC requer papel operacional e scope `metrics:read`, sem consulta adicional ao banco;
+challenge dev/test mantém compatibilidade, e challenge production desabilita por
+padrão. Public em OIDC/production é configuração inválida, sem fail-open. Isso
+permite scrape operacional durante indisponibilidade de banco já iniciado. Permissão
+de métricas é global, assinada pelo IdP, e segue o prazo de validade do JWT; não é
+um grant de wallet nem concede quarentena. Health permanece público.
+
+A [política administrativa](../ADMINISTRATIVE_ACCESS.md) documenta os papéis mínimos,
+claims configuráveis, auditoria, limites de escopo e todos os modos de métricas.
+Nenhuma migration ou regra financeira foi alterada nesta tarefa.

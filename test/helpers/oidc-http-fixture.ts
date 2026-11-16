@@ -1,4 +1,4 @@
-import { ValidationPipe } from '@nestjs/common';
+import { LoggerService, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { MikroORM } from '@mikro-orm/postgresql';
 import { createServer } from 'node:http';
@@ -8,7 +8,10 @@ import config from '../../src/infrastructure/database/mikro-orm.config';
 import { AuthorizationStore } from '../../src/application/authorization/authorization-store';
 import { WalletCapability } from '../../src/infrastructure/database/mikro-orm/authorization.entities';
 
-export async function oidcHttpFixture(settings: Record<string, string> = {}) {
+export async function oidcHttpFixture(
+  settings: Record<string, string> = {},
+  logger: LoggerService | false = false,
+) {
   const original = { ...process.env };
   const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
   const jwks = createServer((_request, response) => {
@@ -36,7 +39,7 @@ export async function oidcHttpFixture(settings: Record<string, string> = {}) {
   });
   const orm = await MikroORM.init(config);
   await orm.getMigrator().up();
-  const app = await NestFactory.create(AppModule, { logger: false });
+  const app = await NestFactory.create(AppModule, { logger });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   await app.listen(0, '127.0.0.1');
   const url = `http://127.0.0.1:${app.getHttpServer().address().port}`;

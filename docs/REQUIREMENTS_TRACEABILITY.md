@@ -65,3 +65,8 @@ agora exigem isolamento; [testes PostgreSQL](../test/integration/authorization-p
 validam grants, constraints, concorrência, revogação e rollback/restauração.
 Ambos são registrados no runner obrigatório; a execução local da Tarefa 2 está
 registrada em [progresso](14_PROGRESS.md), sem alegar aprovação de CI remoto.
+
+Tarefas 3–4: cobertura financeira HTTP em `financial-resource-authorization.spec.ts`;
+papéis/permissões, métricas e auditoria em `administrative-role-access.spec.ts`,
+com política/configuração em [ADMINISTRATIVE_ACCESS](ADMINISTRATIVE_ACCESS.md).
+Os resultados locais estão no registro de progresso; CI remoto não foi presumido.

@@ -1,7 +1,10 @@
+import { AdministrativeClaimsPolicy } from './administrative-claims-policy';
 import {
   ForbiddenException,
   HttpException,
   Injectable,
+  Optional,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException,
@@ -26,7 +29,12 @@ export interface ResourceRequest {
 
 @Injectable()
 export class ResourceAuthorization {
-  constructor(private readonly em: EntityManager) {}
+  private readonly logger = new Logger(ResourceAuthorization.name);
+  constructor(
+    private readonly em: EntityManager,
+    @Optional()
+    private readonly administrativePolicy: AdministrativeClaimsPolicy = new AdministrativeClaimsPolicy(),
+  ) {}
 
   async run<T>(
     principal: AuthenticatedProviderPrincipal | undefined,
@@ -99,6 +107,10 @@ export class ResourceAuthorization {
         correlationId,
       ],
     );
+    if (action.startsWith('quarantine.'))
+      this.logger.log(
+        JSON.stringify({ event: 'administrative_authorization', status: decision, correlationId }),
+      );
   }
 
   private async authorize(
@@ -109,6 +121,7 @@ export class ResourceAuthorization {
   ): Promise<void> {
     const db = tx;
     if (policy.resource === 'operator') {
+      this.administrativePolicy.require(principal, policy.capability);
       const grants = await db.execute(
         `select action from operator_grants where issuer = ? and subject = ? and action = ? and revoked_at is null and granted_at <= clock_timestamp() for share`,
         [principal.issuer, principal.subject, policy.capability],

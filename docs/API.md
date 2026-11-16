@@ -159,3 +159,15 @@ automática de legados nem endpoint público para administrar grants.
 Quarentena exige `quarantine.read` ou `quarantine.resolve`, separadamente, por
 issuer/subject de operador autenticado; a claim de provider não é necessária
 nessas rotas. Papéis/identidades informados no body não concedem privilégios.
+
+### Papéis administrativos e métricas
+
+Em OIDC, quarentena exige papel `operator`/`admin`, permission JWT correspondente
+e grant operacional persistido por issuer/sub; role por si só não concede acesso.
+Consultar e resolver são permissões separadas. A quarentena é global: delegação
+explícita pode cobrir vários providers; raw payload não define tenant.
+
+`/metrics` em OIDC exige papel operacional e `metrics:read` no JWT. No modo challenge
+de desenvolvimento permanece público; em production + challenge o padrão retorna
+404. Consulte [configuração administrativa](ADMINISTRATIVE_ACCESS.md) para claims,
+`METRICS_ACCESS`, scopes e política de auditoria. Health continua público.

@@ -35,7 +35,8 @@ export class ResourceAuthorizationInterceptor implements NestInterceptor {
     const policy = this.reflector.get<ResourcePolicy>(resourcePolicyKey, context.getHandler());
     if (
       (process.env.AUTH_MODE ?? 'challenge').toLowerCase() === 'challenge' ||
-      this.reflector.get<boolean>('resource-public', context.getHandler())
+      this.reflector.get<boolean>('resource-public', context.getHandler()) ||
+      this.reflector.get<boolean>('metrics-access', context.getHandler())
     )
       return next.handle();
     if (!policy)

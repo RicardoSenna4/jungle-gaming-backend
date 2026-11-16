@@ -40,3 +40,10 @@ requisito obrigatório ou falha eliminatória.
 
 Registrar aqui quaisquer falhas reais remanescentes após a execução do CI
 do SHA final e transferir ao checklist de entrega se forem bloqueantes.
+
+Papéis/permissões JWT configuráveis e grants operacionais são exigidos para
+quarentena em OIDC. Métricas externas seguem a política em
+[ADMINISTRATIVE_ACCESS](ADMINISTRATIVE_ACCESS.md); challenge dev/test conserva
+compatibilidade local, enquanto challenge production desabilita métricas por padrão.
+Delegação de quarentena é global explícita; isolamento operacional por tenant/fila
+exigiria origem confiável persistida, sem inferir provider pelo raw payload.

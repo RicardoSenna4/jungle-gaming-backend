@@ -1,3 +1,5 @@
+import { MetricsAccessGuard } from './interfaces/http/metrics-access.guard';
+import { AdministrativeClaimsPolicy } from './application/authorization/administrative-claims-policy';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ResourceAuthorizationInterceptor } from './interfaces/http/resource-authorization.interceptor';
 import { ResourceAuthorization } from './application/authorization/resource-authorization';
@@ -28,6 +30,8 @@ import { OidcJwtVerifier } from './interfaces/http/oidc-jwt.verifier';
   ],
   controllers: [AppController, WalletController],
   providers: [
+    AdministrativeClaimsPolicy,
+    MetricsAccessGuard,
     AuthorizationStore,
     ResourceAuthorization,
     { provide: APP_INTERCEPTOR, useClass: ResourceAuthorizationInterceptor },

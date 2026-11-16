@@ -98,3 +98,13 @@ HTTP simultânea de duas BETs de 80 sobre saldo 100 termina em saldo 20, um déb
 e uma rejeição; 12 replays não duplicam efeito. Um teste observa waiters reais no
 PostgreSQL durante revogação e confirma ausência de transação/ledger/Outbox novos
 para a requisição negada. Está registrado no runner obrigatório.
+
+## Papéis administrativos e métricas (Tarefa 4)
+
+`administrative-role-access.spec.ts` usa JWTs RS256/JWKS e PostgreSQL reais para
+verificar token ausente, provider comum, papel/permission insuficientes, admin sem
+grant, administrador autorizado, read separado de resolve, negações cruzadas e
+auditoria sem dados sensíveis nos logs. Cobre claims/papéis configuráveis e política
+de `/metrics` em OIDC/challenge/production, sem desligar asserts ou introduzir skips.
+`administrative-claims-policy.spec.ts` valida comparação exata, valores malformados
+e configuração fail-closed. O spec HTTP está registrado no runner obrigatório.

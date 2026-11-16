@@ -326,3 +326,74 @@ Typecheck/lint/format/build passaram; teste focado: 4 pass, 0 fail.
 Regressão final da Tarefa 3: 104 testes em 15 targets, 0 falhas/erros/skips;
 PostgreSQL e LocalStack reais, migrations sem pendências. Sem push/merge ou CI
 remoto confirmado; branch mantida separada para revisão.
+
+## 2026-11-16 — Tarefa 4: papéis administrativos e métricas
+
+Worktree `/workspace/jungle-auth-admin`, branch `security/administrative-role-access`,
+baseada no commit da Tarefa 3 `6b13ad4`. `origin/main` permanece na referência
+consultada `b4c0bad`; checkouts anteriores preservados. Código combinado desta branch
+inclui as Tarefas 1–4, ainda sem push/merge na main e sem CI remoto confirmado.
+
+Política mínima: provider comum não ganha operações administrativas; operador/admin
+precisam de papel configurado e permission exata no JWT RS256/JWKS validado, além
+do grant PostgreSQL da ação por issuer/subject. Nem admin tem bypass de scope ou
+grants. Consulta/resolução são independentes; claims e nomes de papéis são
+configuráveis e configurações inválidas falham fechadas. Quarentena mantém a
+delegação global explicitamente definida na ADR, sem inferir provider de raw JSON.
+Um papel válido sem grant não permite alterar mensagens de outros providers.
+
+AdministrativeClaimsPolicy é reutilizada para quarentena e MetricsAccessGuard.
+Métricas em OIDC exigem papel operacional e scope assinado metrics:read, sem query
+adicional ao banco (observabilidade global delegada no IdP). Challenge dev/test
+continua público por compatibilidade; challenge production é desabilitado por
+padrão. Public em OIDC/production ou configuração inválida falha fechada. Health
+permanece público. Operação externa deve usar OIDC/produção e rede restrita.
+
+Auditoria da quarentena registra ator autenticado e decisão; resolução e decisão
+allow participam do mesmo commit. Logs redigidos emitem eventos allow/deny e
+correlação, sem tokens, claims, raw payload ou notas. Métricas registram decisão
+em log, sem depender da auditoria SQL para scrape.
+
+Validação local final (Bun 1.1.38, Node 24.22.1, Docker Engine/Compose, PostgreSQL 16
+/ LocalStack 3.8 reais; Docker Desktop local não confirmado):
+
+- typecheck, lint, format:check e build passaram.
+- Focado administrativo: 5 casos HTTP, 0 falhas; mais 3 testes unitários de política.
+- test:all: **112 testes, 16 targets, zero falhas/erros/skips**, incluindo os testes
+  financeiros e concorrência da Tarefa 3, PG/SQS reais e rollback legado da Tarefa 2.
+- Migrations sem pendências e Compose válido; nenhuma migration nova nesta tarefa.
+- Logs de requisições reais capturados com JsonLogger: evento administrativo
+  presente, sem JWT, Bearer, permissions, nota privada ou raw payload sensível.
+- Sem alteração de domínio, algoritmos financeiros ou migrations históricas.
+- Smoke de reinício do container não executado; Dockerfile/Compose não alterados.
+
+Pendências operacionais: mapear claims no IdP e aprovar grants administrativos,
+configurar coletor de métricas com JWT/escopo, separar credenciais/retencão em
+produção. Sem autoatribuição de privilégios ou interface administrativa nova.
+A delegação operacional atual é global; isolamento por tenant/fila requer outra
+política com origem confiável. A permissão de métricas segue validade do JWT, não
+revogação imediata em banco. Nenhuma integração na main sem CI confirmado.
+
+Arquivos criados/modificados na Tarefa 4:
+
+- `.env.example`
+- `ARCHITECTURE.md`
+- `README.md`
+- `docs/14_PROGRESS.md`
+- `docs/ADMINISTRATIVE_ACCESS.md`
+- `docs/API.md`
+- `docs/OPEN_ISSUES.md`
+- `docs/REQUIREMENTS_TRACEABILITY.md`
+- `docs/TESTING.md`
+- `docs/adr/019-provider-resource-authorization.md`
+- `scripts/test-suite-runner.ts`
+- `src/app.module.ts`
+- `src/application/authorization/administrative-claims-policy.ts`
+- `src/application/authorization/resource-authorization.ts`
+- `src/interfaces/http/app.controller.ts`
+- `src/interfaces/http/metrics-access.guard.ts`
+- `src/interfaces/http/resource-authorization.interceptor.ts`
+- `test/helpers/oidc-http-fixture.ts`
+- `test/integration/administrative-role-access.spec.ts`
+- `test/integration/provider-authorization-audit.spec.ts`
+- `test/unit/administrative-claims-policy.spec.ts`

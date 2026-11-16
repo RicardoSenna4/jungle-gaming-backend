@@ -1,3 +1,4 @@
+import { MetricsAccess } from './metrics-access.guard';
 import { AuthorizeResource, PublicResource } from './resource-authorization.interceptor';
 import {
   BadRequestException,
@@ -131,7 +132,7 @@ export class AppController {
 
   @Get('metrics')
   @Header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8')
-  @PublicResource()
+  @MetricsAccess()
   metricsEndpoint(): string {
     return this.metrics.renderPrometheus();
   }

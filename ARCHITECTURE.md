@@ -92,7 +92,7 @@ com `AUTH_MODE=oidc`: JWT RS256, JWKS, issuer, audience e identidade do provider
 Autenticação e autorização são separadas: `ResourceAuthorization` verifica no
 PostgreSQL o vínculo issuer/subject/provider e a capability por wallet ou player.
 O interceptor global mantém a verificação e o handler na mesma transação, com
-locks compartilhados contra revogação. Operadores exigem grants próprios.
+locks compartilhados contra revogação. Operadores exigem grants próprios, além de papel e permission em JWT validado.
 A [ADR-019](docs/adr/019-provider-resource-authorization.md) define a matriz,
 o provisionamento e rollback. Não há propriedade exclusiva nem backfill de legados.
 
@@ -116,3 +116,7 @@ com log/métrica de divergência e nenhuma correção silenciosa.
 
 Consulte [testes](docs/TESTING.md), [falhas e recuperação](docs/FAILURE_RECOVERY.md),
 [ADRs](docs/02_ADR_REGISTER.md) e [rastreabilidade](docs/REQUIREMENTS_TRACEABILITY.md).
+
+A política de métricas/claims administrativas está em [ADMINISTRATIVE_ACCESS](docs/ADMINISTRATIVE_ACCESS.md):
+OIDC exige papel operacional + scope para métricas; challenge production desabilita
+por padrão, preservando operação pública local do desafio. Health permanece público.

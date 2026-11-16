@@ -79,7 +79,9 @@ describeIntegration(
           iss: process.env.OIDC_ISSUER_URL,
           aud: 'authorization-audit',
           sub: `subject-${providerId}`,
-          ...(providerId === 'operator' ? {} : { providerId }),
+          ...(providerId === 'operator'
+            ? { roles: ['operator'], scope: 'quarantine:read quarantine:resolve' }
+            : { providerId }),
           exp: Math.floor(Date.now() / 1_000) + 300,
         }),
       ).toString('base64url');
