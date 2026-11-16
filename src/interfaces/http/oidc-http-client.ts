@@ -19,12 +19,25 @@ export function publicOidcAddress(address: string): boolean {
       (a === 203 && b === 0 && c === 113)
     );
   }
-  const lower = address.toLowerCase();
-  return (
-    isIP(address) === 6 &&
-    /^[23]/.test(lower) &&
-    !lower.startsWith('2002:') &&
-    !/^2001:(?:0:|0000:|db8:|0db8:)/.test(lower)
+  if (isIP(address) !== 6 || address.includes('.') || address.includes('%')) return false;
+  const halves = address.toLowerCase().split('::');
+  const left = halves[0] ? halves[0].split(':') : [];
+  const right = halves[1] ? halves[1].split(':') : [];
+  const groups =
+    halves.length === 2
+      ? [...left, ...Array(8 - left.length - right.length).fill('0'), ...right]
+      : left;
+  if (groups.length !== 8) return false;
+  const bits = groups.reduce((result, group) => (result << 16n) | BigInt(`0x${group}`), 0n);
+  if (bits >> 125n !== 1n) return false; // Only global unicast 2000::/3.
+  const reserved: Array<[bigint, number]> = [
+    [0x20010000000000000000000000000000n, 23],
+    [0x20010db8000000000000000000000000n, 32],
+    [0x20020000000000000000000000000000n, 16],
+    [0x3fff0000000000000000000000000000n, 20],
+  ];
+  return !reserved.some(
+    ([prefix, length]) => bits >> BigInt(128 - length) === prefix >> BigInt(128 - length),
   );
 }
 
