@@ -1,0 +1,14 @@
+{
+  "sourceCommit": "0039db9c0a820b2ec77e3f889ed0e9ab57ca4477",
+  "workflow": "ci",
+  "runUrl": "https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43933705607",
+  "branchAtRunTime": "main",
+  "state": {
+    "status": "WORKFLOW_RUN_STATUS_COMPLETED",
+    "conclusion": "WORKFLOW_RUN_CONCLUSION_SUCCESS"
+  },
+  "createdAt": "2026-11-16T18:54:17Z",
+  "runNumber": 72,
+  "duration": "3m 55s",
+  "event": "pushed"
+}

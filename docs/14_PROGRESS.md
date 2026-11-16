@@ -559,3 +559,17 @@ local forçado; correções usam CA confiável e SDK credential chain no ECS.
 Typecheck/lint/format/build e 139 testes em 23 targets passaram, zero skips.
 Bootstrap DB/roles, migrações privadas, DNS/ACM/IdP, restore e operação AWS exigem
 conta isolada autorizada; não há alegação de produção validada.
+
+## 2026-11-16 — Galeria de execução real
+
+Branch docs/system-gallery em worktree próprio. Cinco imagens no README: Grafana
+e Prometheus capturados diretamente; relatórios identificados para HTTP/SQL,
+deduplicação SQS/PostgreSQL e CI público aprovado no SHA 0039db9. Código financeiro
+inalterado. Demonstração isolada: saldo75.00 após BET25.00, cinco replays, uma BET
+e dois lançamentos; reconciliação consistente. Duas mensagens SQS distintas e
+dois consumidores produziram uma projeção persistida, sem alterar wallet/ledger.
+Amostras reais de tráfego e consulta up=1 gravadas, com hashes e reprodução.
+Capturas inspecionadas visualmente. Checks de qualidade e typecheck dos scripts
+aprovados; scripts de captura executados com PostgreSQL/LocalStack reais.
+CSS externo do GitHub bloqueado: imagem de CI é relatório de metadados verificáveis,
+explicitamente identificada, sem imitar a UI. Não é benchmark nem prova de OIDC.

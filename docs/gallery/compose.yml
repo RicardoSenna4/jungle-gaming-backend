@@ -1,0 +1,25 @@
+# Overlay for performance/compose.yml; its database and queues remain disposable.
+services:
+  api:
+    ports: ['127.0.0.1:3130:3000']
+    environment:
+      GALLERY_DEMO: '1'
+      GALLERY_SOURCE_COMMIT: ${GALLERY_SOURCE_COMMIT:?set the source commit before capture}
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    ports: ['127.0.0.1:9190:9090']
+    volumes:
+      - ../infra/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../infra/observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+  grafana:
+    image: grafana/grafana:11.6.0
+    ports: ['127.0.0.1:3131:3000']
+    environment:
+      NO_PROXY: localhost,127.0.0.1,api,prometheus
+      no_proxy: localhost,127.0.0.1,api,prometheus
+      GF_SECURITY_ADMIN_PASSWORD: gallery-local-demo
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+    volumes:
+      - ../infra/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../infra/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro

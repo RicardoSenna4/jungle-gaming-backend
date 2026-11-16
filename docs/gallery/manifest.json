@@ -1,0 +1,67 @@
+{
+  "sourceCommit": "0039db9c0a820b2ec77e3f889ed0e9ab57ca4477",
+  "files": {
+    "docs/gallery/grafana-live.png": {
+      "sha256": "46cfd61274988b7fa9551f7cac2431a15c83410d1fcb4cf33aecc2cbb0536cac",
+      "bytes": 144176,
+      "width": 1600,
+      "height": 1280
+    },
+    "docs/gallery/prometheus-target.png": {
+      "sha256": "15e32d51e1b3cb25d434f33b42c62b6b9dc5462d767b0ab8d6e4ad1ce35138d8",
+      "bytes": 34828,
+      "width": 1520,
+      "height": 440
+    },
+    "docs/gallery/financial-flow.png": {
+      "sha256": "081c9227bff5adb55675d1fe094d9cb24cf786f602115c548f20f6074b786f99",
+      "bytes": 138353,
+      "width": 1520,
+      "height": 1267
+    },
+    "docs/gallery/persistent-deduplication.png": {
+      "sha256": "fbd29c76326ab83fcf51b508389d81b89062f067c6a23fe968513a253c2b4989",
+      "bytes": 120771,
+      "width": 1520,
+      "height": 1180
+    },
+    "docs/gallery/ci-success.png": {
+      "sha256": "e6cf8f66b76e574b4e0e5ffb7c54556b6dea4eca35669d5c494c4cf25bf64a1b",
+      "bytes": 90002,
+      "width": 1520,
+      "height": 860
+    },
+    "docs/gallery/evidence.json": {
+      "sha256": "6b5e734c2f19c148a5bb27326db43ae5b25feebcc46e5594b514e2cdb47e095a",
+      "bytes": 4119
+    },
+    "docs/gallery/traffic.json": {
+      "sha256": "5a71994c65fcae6943549b9d40a890acb4666e6240056846cf220e2e52563972",
+      "bytes": 113
+    },
+    "docs/gallery/prometheus-up.json": {
+      "sha256": "533a4a50641bab4ff5b4e9415674645ded89b41f58975386843adc74b5ef2f2f",
+      "bytes": 301
+    },
+    "docs/gallery/ci.json": {
+      "sha256": "5e770cf478265b9ad4cac5eee0a2a12fc995c260ebe46cf22369295926f60e98",
+      "bytes": 429
+    },
+    "docs/gallery/compose.yml": {
+      "sha256": "a656cad9b59769346337cafa463dd4f48407789f4bab873adb6375f8318e97c9",
+      "bytes": 1021
+    },
+    "scripts/gallery-evidence.ts": {
+      "sha256": "ff500f234c12fdf4a0a7356802b077590237f49cf172ab740d8c1b8ce8cb85cc",
+      "bytes": 7212
+    },
+    "scripts/capture-gallery.py": {
+      "sha256": "11b46a8313c318cfb915c58b4f1b92ef0fca195038cfc2ba3385fd10a3bd3153",
+      "bytes": 10399
+    },
+    "scripts/capture-gallery-ci.py": {
+      "sha256": "1e1e07d838c99ecc85a06f42c3035959e2e0a8e6f973f83277e7da5fe7f28a69",
+      "bytes": 4522
+    }
+  }
+}

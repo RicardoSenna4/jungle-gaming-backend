@@ -7,7 +7,7 @@ Processamento distribuído de operações de apostas com saldo consistente, ledg
 [![Bun 1.x](https://img.shields.io/badge/runtime-Bun%201.x-333333)](package.json)
 [![PostgreSQL 16](https://img.shields.io/badge/database-PostgreSQL%2016-316192)](docker-compose.yml)
 
-[**Executar**](#execução-rápida) · [**Arquitetura**](#arquitetura) · [**Requisitos**](#matriz-de-avaliação) · [**Testes críticos**](#testes-críticos) · [**API**](docs/API.md) · [**Guia de uso**](docs/DEMO.md) · [**Limitações**](#decisões-e-limitações)
+[**Executar**](#execução-rápida) · [**Galeria**](#projeto-em-funcionamento) · [**Arquitetura**](#arquitetura) · [**Requisitos**](#matriz-de-avaliação) · [**Testes críticos**](#testes-críticos) · [**API**](docs/API.md) · [**Guia de uso**](docs/DEMO.md) · [**Limitações**](#decisões-e-limitações)
 
 ## Objetivo e estado
 
@@ -16,6 +16,55 @@ Esta solução recebe `BET`, `WIN`, `LOSS`, `REFUND` e `ROLLBACK` por HTTP ou SQ
 **Stack:** Bun 1.1.38, TypeScript strict, NestJS, MikroORM, PostgreSQL 16, AWS SQS via LocalStack e Docker Compose. O [enunciado original](CHALLENGE_SPEC.md) foi preservado.
 
 **Estado da versão entregue:** consulte o [executar o CI da `main`](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/workflows/ci.yml?query=branch%3Amain) e confira se o SHA da execução aprovada coincide com o [último commit da branch](https://github.com/RicardoSenna4/jungle-gaming-backend/commits/main). **Evidência histórica verificada:** a [execução #43770950239](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43770950239), no commit [`3e540c6`](https://github.com/RicardoSenna4/jungle-gaming-backend/commit/3e540c6da0b7197ae1954c4315febd198a292b64), registrou **80 testes aprovados, zero falhas, zero ignorados** e smoke em container com SIGKILL/SIGTERM. Ela é um **snapshot histórico**, não afirmação de que futuros commits estejam aprovados. Consulte o [guia de evidências de CI](docs/CI_EVIDENCE.md).
+
+## Projeto em funcionamento
+
+Demonstração local com **dados sintéticos**, PostgreSQL 16 e LocalStack reais, no
+commit [`0039db9`](https://github.com/RicardoSenna4/jungle-gaming-backend/commit/0039db9c0a820b2ec77e3f889ed0e9ab57ca4477).
+Grafana e Prometheus são capturas diretas; as demais imagens são relatórios visuais
+identificados, gerados de respostas HTTP, consultas SQL e metadados públicos de CI.
+Clique nas imagens para ampliar. [Fontes, limites e reprodução](docs/gallery/README.md).
+
+[![Grafana com tráfego real: throughput, latência, rejeições, DLQ, quarentena e Outbox](docs/gallery/grafana-live.png)](docs/gallery/grafana-live.png)
+
+*Grafana: métricas coletadas durante a demonstração, com BETs, WINs, rejeições por
+saldo insuficiente e um conflito de replay esperado. Não representa benchmark de produção.*
+
+<details>
+<summary>Ver Prometheus, operação financeira, deduplicação e CI</summary>
+
+### Prometheus: API disponível para coleta
+
+[![Prometheus com o target jungle-api saudável e endpoint api:3000](docs/gallery/prometheus-target.png)](docs/gallery/prometheus-target.png)
+
+*Captura da interface do Prometheus. A consulta gravada também confirmou
+`up{job="jungle-api"}=1`; isso comprova coleta naquele momento, não disponibilidade contínua.*
+
+### Operação financeira e reconciliação
+
+[![Relatório HTTP e SQL: saldo 75.00 após BET 25.00, cinco replays e ledger consistente](docs/gallery/financial-flow.png)](docs/gallery/financial-flow.png)
+
+*Wallet criada com BRL 100.00, BET de BRL 25.00 e cinco replays concorrentes:
+uma BET persistida, dois lançamentos contando a abertura, saldo BRL 75.00 e
+diferença de reconciliação zero. Relatório de backend, não frontend do produto.*
+
+### Deduplicação persistente de eventos
+
+[![Relatório de duas mensagens SQS distintas e dois consumidores concorrentes produzindo um efeito persistido](docs/gallery/persistent-deduplication.png)](docs/gallery/persistent-deduplication.png)
+
+*Duas cópias de um evento real da Outbox, recebidas pelo SQS e processadas pelo
+consumidor de referência: um evento e um efeito na projeção PostgreSQL, sem alterar
+wallet/ledger. O transporte continua at-least-once; não se afirma exactly-once fim a fim.*
+
+### CI aprovado e rastreável
+
+[![Relatório da execução real 72 do GitHub Actions, com status Success no commit 0039db9](docs/gallery/ci-success.png)](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43933705607)
+
+*Resumo visual dos metadados públicos da [execução #72](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/runs/43933705607),
+aprovada no SHA demonstrado. É uma evidência histórica identificada, não captura
+da interface do GitHub nem garantia para commits posteriores.*
+
+</details>
 
 ## Execução rápida
 

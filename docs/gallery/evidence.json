@@ -1,0 +1,156 @@
+{
+  "sourceCommit": "0039db9c0a820b2ec77e3f889ed0e9ab57ca4477",
+  "capturedAt": "2026-11-16T19:12:17.172Z",
+  "environment": "Disposable Docker Compose / challenge / synthetic data",
+  "financial": {
+    "created": {
+      "httpStatus": 201,
+      "body": {
+        "id": "6efb5382-854f-4339-a68a-df903c45d626",
+        "playerId": "gallery-financial-17e6c03d-3f1b-4aaa-bd7d-f044015b1755",
+        "balance": {
+          "amount": "100.00",
+          "currency": "BRL"
+        },
+        "version": 1
+      }
+    },
+    "request": {
+      "endpoint": "POST /wagering/transactions",
+      "body": {
+        "providerId": "gallery-demo",
+        "playerId": "gallery-financial-17e6c03d-3f1b-4aaa-bd7d-f044015b1755",
+        "walletId": "6efb5382-854f-4339-a68a-df903c45d626",
+        "roundId": "gallery-round",
+        "gameId": "gallery-game",
+        "externalTransactionId": "gallery-bet-17e6c03d-3f1b-4aaa-bd7d-f044015b1755",
+        "kind": "BET",
+        "money": {
+          "amount": "25.00",
+          "currency": "BRL"
+        }
+      }
+    },
+    "bet": {
+      "httpStatus": 200,
+      "body": {
+        "transactionId": "dcd6e0e2-91cd-42d8-9517-5efceed8b531",
+        "status": "PROCESSED",
+        "balance": {
+          "amount": "75.00",
+          "currency": "BRL"
+        },
+        "idempotentReplay": false
+      }
+    },
+    "replays": [
+      {
+        "httpStatus": 200,
+        "body": {
+          "status": "PROCESSED",
+          "balance": {
+            "amount": "75.00",
+            "currency": "BRL"
+          },
+          "transactionId": "dcd6e0e2-91cd-42d8-9517-5efceed8b531",
+          "idempotentReplay": true
+        }
+      },
+      {
+        "httpStatus": 200,
+        "body": {
+          "status": "PROCESSED",
+          "balance": {
+            "amount": "75.00",
+            "currency": "BRL"
+          },
+          "transactionId": "dcd6e0e2-91cd-42d8-9517-5efceed8b531",
+          "idempotentReplay": true
+        }
+      },
+      {
+        "httpStatus": 200,
+        "body": {
+          "status": "PROCESSED",
+          "balance": {
+            "amount": "75.00",
+            "currency": "BRL"
+          },
+          "transactionId": "dcd6e0e2-91cd-42d8-9517-5efceed8b531",
+          "idempotentReplay": true
+        }
+      },
+      {
+        "httpStatus": 200,
+        "body": {
+          "status": "PROCESSED",
+          "balance": {
+            "amount": "75.00",
+            "currency": "BRL"
+          },
+          "transactionId": "dcd6e0e2-91cd-42d8-9517-5efceed8b531",
+          "idempotentReplay": true
+        }
+      },
+      {
+        "httpStatus": 200,
+        "body": {
+          "status": "PROCESSED",
+          "balance": {
+            "amount": "75.00",
+            "currency": "BRL"
+          },
+          "transactionId": "dcd6e0e2-91cd-42d8-9517-5efceed8b531",
+          "idempotentReplay": true
+        }
+      }
+    ],
+    "final": {
+      "id": "6efb5382-854f-4339-a68a-df903c45d626",
+      "playerId": "gallery-financial-17e6c03d-3f1b-4aaa-bd7d-f044015b1755",
+      "balance": {
+        "amount": "75.00",
+        "currency": "BRL"
+      },
+      "version": 2
+    },
+    "reconciliation": {
+      "httpStatus": 200,
+      "body": {
+        "walletId": "6efb5382-854f-4339-a68a-df903c45d626",
+        "storedBalance": {
+          "amount": "75.00",
+          "currency": "BRL"
+        },
+        "calculatedBalance": {
+          "amount": "75.00",
+          "currency": "BRL"
+        },
+        "difference": {
+          "amount": "0.00",
+          "currency": "BRL"
+        },
+        "consistent": true,
+        "checkedEntries": 2
+      }
+    },
+    "sql": {
+      "bets": 1,
+      "ledger_entries": 2
+    }
+  },
+  "deduplication": {
+    "eventId": "61f4d545-2f0a-4aa3-8d4f-7f897b56570a",
+    "receivedMessageIds": [
+      "c0dff471-b6a7-4e69-8fc6-40834c847c1a",
+      "edf28089-e5ee-4964-877e-4e9f1967229a"
+    ],
+    "simultaneousConsumers": 2,
+    "persistedEvents": 1,
+    "projectionEffects": 1,
+    "handlersCompletedAfterAck": 2,
+    "visibleAfterAck": 0,
+    "financialSnapshotUnchanged": true,
+    "deliveryGuarantee": "at-least-once"
+  }
+}
