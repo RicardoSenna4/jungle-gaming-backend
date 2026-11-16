@@ -211,3 +211,18 @@ O README foi alinhado aos novos comandos e ao requisito de serviços. F02 e fase
 Mensagens SQS inválidas ou permanentemente inconsistentes são persistidas na quarentena antes do ACK. Se a persistência falhar, continuam sem ACK e seguem retry/DLQ. Foram adicionados `GET /operations/quarantine` e `POST /operations/quarantine/:consumerName/:messageId/resolve`, protegidos pelo guard de identidade, além das métricas `quarantine_messages_total` e `sqs_messages_quarantined_total` e logs estruturados de quarentena.
 
 Os testes de consumer foram atualizados para comprovar ACK pós-commit da quarentena e ausência de Inbox, transação financeira e ledger.
+
+## 2026-11-16 — Tarefa 1: auditoria de autorização por provider
+
+Base `origin/main` confirmada por fetch em `b4c0bad`; worktree isolado
+`jungle-auth-audit`, branch `security/provider-authorization-audit`.
+[ADR-019](adr/019-provider-resource-authorization.md) proposta: achados A1–A7,
+matriz por endpoint, vínculos muitos-para-muitos, legados e migration reversível.
+Sem enforcement novo, migration nova ou alteração financeira.
+Sete testes reais de auditoria adicionados ao runner: autenticados permitidos,
+negações já existentes e reproduções explicitamente identificadas como `AUDIT GAP`.
+Bypass body/URL reproduzido no runtime Node suportado; a diferença de transporte
+Bun está delimitada na ADR. A passagem desses testes não certifica isolamento.
+Validação local: typecheck/lint/format/build passaram; sem migrations pendentes;
+`test:all` com 93 testes em 13 targets, zero falhas/erros/skips, PG/LocalStack reais.
+Nenhuma integração na main: CI dos novos commits não confirmado.

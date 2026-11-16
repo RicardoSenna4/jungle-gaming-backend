@@ -15,4 +15,6 @@ O registro oficial de decisões deste repositório está em [`docs/02_ADR_REGIST
 | 016 | Auth opcional e extensão concreta | [Guard](../../src/interfaces/http/provider-identity.guard.ts) |
 | 017–018 | Métricas e reconciliação | [Métricas](../../src/infrastructure/telemetry/metrics.service.ts), [wallet](../../src/application/wallets/wallet-repository.ts) |
 
+| 019 (proposta) | Autorização por identidade e vínculos persistentes, wallets compartilhadas | [Auditoria e matriz](019-provider-resource-authorization.md) |
+
 ADRs registram **por que** as decisões foram tomadas; os [testes](../TESTING.md) mostram o que foi **efetivamente executado**. A especificação prevalece: [`CHALLENGE_SPEC.md`](../../CHALLENGE_SPEC.md).

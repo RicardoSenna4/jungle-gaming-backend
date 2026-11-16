@@ -64,3 +64,19 @@ O E2E com LocalStack não comprova automaticamente idêntico comportamento no
 SQS gerenciado em AWS; duplicatas continuam possíveis fora da janela FIFO.
 A presença de métodos `runOnce` não substitui prova de timer/agendamento real.
 A execução de SIGKILL/SIGTERM da API já foi provada no CI, mas injeção de falha entre send/mark da outbox e entre commit/ACK do consumer continuam casos distintos, que não podem ser inferidos apenas da reinicialização. Ver [FAILURE_RECOVERY](FAILURE_RECOVERY.md).
+
+## Auditoria de autorização (Tarefa 1)
+
+`provider-authorization-audit.spec.ts` está registrado em `test:integration:postgres`
+e `test:all`. Usa Nest HTTP, PostgreSQL e JWKS HTTP local com tokens RSA assinados,
+sem substituir integrações por mocks. LocalStack real deve estar ativo para readiness.
+Executar `bun run build` antes da suíte: o caso de GET com body usa adicionalmente
+a API compilada em Node, caminho suportado por `bun run start`, e cliente Node,
+pois o transporte Bun testado descarta esse body. O teste encerra os processos criados.
+O runner continua rejeitando skips, zero testes e specs não registradas.
+
+Os casos `AUDIT GAP` esperam a exposição atual para documentá-la: **não são prova
+de isolamento nem critérios de aceitação de produção**. O contrato de negação que
+deverá substituir esses asserts está na [ADR-019](adr/019-provider-resource-authorization.md).
+Não introduzir skips para manter os testes passando quando o enforcement chegar.
+O fixture trunca tabelas somente na base isolada de testes; jamais usar produção.

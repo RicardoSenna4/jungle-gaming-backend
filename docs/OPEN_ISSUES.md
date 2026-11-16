@@ -9,7 +9,12 @@ requisito obrigatório ou falha eliminatória.
   expiração/ativação e vincula a claim de identidade ao `providerId` do request.
   O modo `challenge` permanece permissivo para compatibilidade com o enunciado;
   não expor a API pública nesse modo. Ainda ficam fora do escopo local a operação
-  de um IdP real, rotação/monitoramento de segredos e políticas avançadas de RBAC.
+  de um IdP real e rotação/monitoramento de segredos. **Bloqueio de produção:**
+  autenticação OIDC não garante isolamento por recurso. UUIDs, ledger/reconciliação,
+  criação de wallets e quarentena têm exposições reproduzidas; o GET por provider
+  também admite bypass por precedência do body. Ver [ADR-019](adr/019-provider-resource-authorization.md)
+  para evidências, matriz, dados legados e plano reversível. O enforcement permanece
+  pendente, sem inferir propriedade exclusiva de wallets.
 - **Exactly-once:** não prometido entre PostgreSQL/SQS. Eventos carregam `eventId`;
   consumidores downstream reais precisam implementar deduplicação persistente.
 - **Operação AWS:** Compose usa LocalStack; real AWS, TLS, credenciais gerenciadas,

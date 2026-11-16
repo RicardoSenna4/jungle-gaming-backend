@@ -87,9 +87,12 @@ Endpoints conforme README; `Idempotency-Key` obrigatório.
 202 referência pendente, 404 inexistente e 503 dependência indisponível.
 Cursor do ledger preserva timestamp PostgreSQL até microssegundos e valida formato/UUID.
 
-Autenticação OIDC foi deixada fora do escopo pontuado;
-`ChallengeProviderIdentityGuard` é um ponto de extensão no-op, sem fornecer segurança real.
-Na produção substituir por validação JWT/IdP, vincular identidade ao provedor e restringir recursos.
+O guard mantém `AUTH_MODE=challenge` permissivo e implementa autenticação opt-in
+com `AUTH_MODE=oidc`: JWT RS256, JWKS, issuer, audience e identidade do provider.
+Autenticação não é autorização por recurso: consultas por UUID, ledger,
+reconciliação, criação e quarentena ainda não exigem vínculos persistentes.
+A [ADR-019](docs/adr/019-provider-resource-authorization.md) registra os achados,
+a matriz proposta e o plano de migração; o enforcement ainda não foi implementado.
 
 Logger emite uma linha JSON por evento com whitelist de campos operacionais,
 sem payload financeiro completo/segredos. `/metrics` expõe métricas por instância,
@@ -103,8 +106,9 @@ com log/métrica de divergência e nenhuma correção silenciosa.
   protocolos adicionais de consistência sem benefício para o desafio.
 - Lock pessimista reduz throughput de uma wallet quente, mas não bloqueia wallets diferentes.
 - SQS FIFO auxilia ordenação/duplicatas, mas não substitui índices SQL nem Inbox.
-- Autenticação real, dashboards, AWS real, testes de carga e observabilidade distribuída
-  são opcionais ou externos ao escopo pontuado; não afirmar que foram implementados.
+- OIDC está implementado como opt-in; isolamento entre provedores por recurso ainda
+  é pendente. Dashboards, AWS real, testes de carga e observabilidade distribuída
+  são opcionais ou externos ao escopo pontuado.
 - Runner de CI usa PostgreSQL/LocalStack reais e testes por arquivo em série por causa
   de TRUNCATE dos fixtures; paralelismo **dentro** do teste distribuído é real.
 
