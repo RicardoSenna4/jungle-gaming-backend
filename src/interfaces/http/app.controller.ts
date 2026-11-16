@@ -94,6 +94,7 @@ export class AppController {
       });
   }
 
+  @UseGuards(ChallengeProviderIdentityGuard)
   @Get('wagering/transactions/:transactionId')
   async getTransaction(@Param('transactionId') transactionId: string) {
     const transaction = await this.service.findTransactionById(transactionId);
@@ -101,6 +102,7 @@ export class AppController {
     return transaction;
   }
 
+  @UseGuards(ChallengeProviderIdentityGuard)
   @Get('providers/:providerId/wagering/transactions/:externalTransactionId')
   async getProviderTransaction(
     @Param('providerId') providerId: string,

@@ -1,16 +1,46 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { AuthenticatedProviderPrincipal, OidcJwtError, OidcJwtVerifier } from './oidc-jwt.verifier';
 
-/**
- * Explicit authentication extension point for the challenge. This guard is
- * deliberately permissive: authentication is outside the scored scope.
- * For production replace canActivate with OIDC/JWT verification and bind
- * the authenticated provider identity to a request-scoped principal.
- * Never treat the providerId from a body as proof of authentication.
- */
+export interface AuthenticatedRequest {
+  headers: { authorization?: string };
+  body?: Record<string, unknown>;
+  params?: Record<string, string | undefined>;
+  principal?: AuthenticatedProviderPrincipal;
+}
+
 @Injectable()
 export class ChallengeProviderIdentityGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean {
-    void context;
+  constructor(private readonly verifier = new OidcJwtVerifier()) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    if ((process.env.AUTH_MODE ?? 'challenge').toLowerCase() !== 'oidc') return true;
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    let principal: AuthenticatedProviderPrincipal;
+    try {
+      principal = await this.verifier.verify(request.headers?.authorization);
+    } catch (error) {
+      if (error instanceof OidcJwtError && error.retryable) {
+        throw new ServiceUnavailableException({ errorCode: error.message, retryable: true });
+      }
+      const code = error instanceof OidcJwtError ? error.message : 'INVALID_TOKEN';
+      throw new UnauthorizedException({ errorCode: code });
+    }
+
+    const requestedProviderId =
+      typeof request.body?.providerId === 'string'
+        ? request.body.providerId
+        : request.params?.providerId;
+    if (requestedProviderId && requestedProviderId !== principal.providerId) {
+      throw new ForbiddenException({ errorCode: 'PROVIDER_IDENTITY_MISMATCH' });
+    }
+    request.principal = principal;
     return true;
   }
 }

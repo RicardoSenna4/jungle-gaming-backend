@@ -4,9 +4,12 @@ Este documento não substitui a matriz de requisitos nem o resultado do CI.
 Uma limitação de entrega deve ser reclassificada como bloqueante se violar
 requisito obrigatório ou falha eliminatória.
 
-- **Autenticação:** guard permissivo para o desafio, sem OIDC/JWT real. Em produção
-  integrar IdP externo, identidade do provedor e autorização. Não expor API pública
-  assim configurada.
+- **Autenticação:** OIDC/JWT foi implementado de forma opt-in. Com `AUTH_MODE=oidc`,
+  o guard exige Bearer JWT RS256, valida assinatura por JWKS, issuer, audience,
+  expiração/ativação e vincula a claim de identidade ao `providerId` do request.
+  O modo `challenge` permanece permissivo para compatibilidade com o enunciado;
+  não expor a API pública nesse modo. Ainda ficam fora do escopo local a operação
+  de um IdP real, rotação/monitoramento de segredos e políticas avançadas de RBAC.
 - **Exactly-once:** não prometido entre PostgreSQL/SQS. Eventos carregam `eventId`;
   consumidores downstream reais precisam implementar deduplicação persistente.
 - **Operação AWS:** Compose usa LocalStack; real AWS, TLS, credenciais gerenciadas,
