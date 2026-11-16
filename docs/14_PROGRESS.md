@@ -471,3 +471,7 @@ auditoria no up/down/up. Testes usam base isolada e bancos descartáveis própri
 Limites: publicação não é exactly-once nem prova sucesso financeiro; malformados
 exigem correção legítima na origem; histórico HTTP limita últimas 100 entradas,
 com auditoria integral no PG. Sem push/merge/CI remoto confirmado.
+Revisão do snapshot da Tarefa 6: introspecção PG mudou também o rótulo de coluna
+associado a CHECKs multicoluna, sem alterar suas expressões. O snapshot foi atualizado
+somente para status/permissão ampliados, índice de paginação e duas tabelas novas;
+entradas financeiras anteriores preservadas integralmente. Sem novo SQL/DDL.
