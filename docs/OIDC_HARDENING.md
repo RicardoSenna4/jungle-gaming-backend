@@ -52,3 +52,6 @@ real a partir dos testes locais. Use rate limit/egress e IdP confiável no deplo
 IPv6 é comparado por prefixos binários, inclusive formas comprimidas. Teredo,
 benchmark/documentação, 6to4 e endereços com zone ID não entram como destinos
 públicos; um caso de IPv6 global é verificado positivamente nos testes.
+
+OIDC_JWKS_URI ausente ou vazio usa discovery validado; issuer/audience vazios
+continuam erros de configuração. Isso preserva o uso do arquivo .env.example.
