@@ -11,12 +11,10 @@ import {
   Post,
   Query,
   ParseUUIDPipe,
-  UseGuards,
 } from '@nestjs/common';
 import { MetricsService } from '../../infrastructure/telemetry/metrics.service';
 import { WalletService } from '../../application/wallets/wallet-service';
 import { CreateWalletRequestDto } from './dtos';
-import { ChallengeProviderIdentityGuard } from './provider-identity.guard';
 
 @Controller('wallets')
 export class WalletController {
@@ -28,21 +26,18 @@ export class WalletController {
   ) {}
 
   @Post()
-  @UseGuards(ChallengeProviderIdentityGuard)
   @AuthorizeResource({ resource: 'player' })
   create(@Body() body: CreateWalletRequestDto) {
     return this.wallets.createWallet(body.playerId, body.initialBalance);
   }
 
   @Get(':walletId')
-  @UseGuards(ChallengeProviderIdentityGuard)
   @AuthorizeResource({ resource: 'wallet', capability: 'balance.read' })
   get(@Param('walletId', new ParseUUIDPipe({ version: '4' })) walletId: string) {
     return this.wallets.getWallet(walletId);
   }
 
   @Get(':walletId/ledger')
-  @UseGuards(ChallengeProviderIdentityGuard)
   @AuthorizeResource({ resource: 'wallet', capability: 'ledger.read_all' })
   ledger(
     @Param('walletId') walletId: string,
@@ -57,7 +52,6 @@ export class WalletController {
   }
 
   @Post(':walletId/reconciliation')
-  @UseGuards(ChallengeProviderIdentityGuard)
   @HttpCode(HttpStatus.OK)
   @AuthorizeResource({ resource: 'wallet', capability: 'reconcile' })
   async reconcile(@Param('walletId') walletId: string) {

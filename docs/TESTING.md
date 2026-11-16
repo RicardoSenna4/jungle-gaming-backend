@@ -86,3 +86,15 @@ produção/dados reais. Ambos os specs estão no runner obrigatório, que rejeit
 
 Rollback com dados exige confirmação explícita após backup verificado; veja a ADR.
 O CI preserva o dump e checksum em `.test-results/` antes do rollback descartável.
+
+## Cobertura financeira HTTP (Tarefa 3)
+
+`financial-resource-authorization.spec.ts` percorre todos os endpoints financeiros
+com JWTs RS256/JWKS reais de dois providers: criação, wallet, ledger, reconciliação,
+BET/WIN/LOSS/REFUND/ROLLBACK e consultas de transações por UUID/ID externo.
+Valida permissões distintas em wallets exclusivas/compartilhadas, negações sem
+metadados, snapshots de replay e persistência financeira após rejeição. A disputa
+HTTP simultânea de duas BETs de 80 sobre saldo 100 termina em saldo 20, um débito
+e uma rejeição; 12 replays não duplicam efeito. Um teste observa waiters reais no
+PostgreSQL durante revogação e confirma ausência de transação/ledger/Outbox novos
+para a requisição negada. Está registrado no runner obrigatório.

@@ -15,7 +15,7 @@ import type {
 } from '../../infrastructure/database/mikro-orm/authorization.entities';
 
 export type ResourcePolicy =
-  | { resource: 'wallet'; capability: WalletCapability; parameter?: string }
+  | { resource: 'wallet'; capability: WalletCapability; parameter?: 'body' }
   | { resource: 'transaction'; external?: boolean }
   | { resource: 'player' }
   | { resource: 'operator'; capability: OperatorCapability };
@@ -34,7 +34,7 @@ export class ResourceAuthorization {
     request: ResourceRequest,
     work: () => Promise<T>,
   ): Promise<T> {
-    if (!principal) throw new UnauthorizedException();
+    if (!principal) throw new UnauthorizedException({ errorCode: 'AUTHORIZATION_REQUIRED' });
     const correlationId = randomUUID();
     const action =
       policy.resource === 'wallet' || policy.resource === 'operator'

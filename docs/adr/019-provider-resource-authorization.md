@@ -392,3 +392,18 @@ Esse processo confia na identidade administrativa estabelecida fora da aplicaç�
 serviço HTTP/worker não deve poder executar DDL, desativar triggers, truncar essas
 tabelas ou provisionar grants por rotas externas. O Compose continua usando conta
 local de desenvolvimento; separação de credenciais PostgreSQL é requisito do deploy.
+
+## Tarefa 3 — Cobertura integral de endpoints financeiros
+
+`AuthorizeResource` agora combina política e guard JWT numa única declaração;
+não é necessário lembrar um segundo decorator de autenticação. Ausência de
+principal retorna 401 com `AUTHORIZATION_REQUIRED`; vínculo de identidade ausente
+ou provider divergente retorna 403; recurso invisível/inexistente retorna o mesmo
+404 genérico. Policy ausente em OIDC continua falhando fechada.
+
+A implementação da Tarefa 2 foi preservada e exercitada por testes HTTP adicionais
+para todos os tipos financeiros, recursos exclusivos/compartilhados e concorrência
+real. Compartilhar wallet não concede leitura das transações privadas de outro
+provider. A referência de REFUND/ROLLBACK continua sujeita às regras financeiras
+do mesmo provider/player/wallet/moeda/rodada. Nenhuma migration, regra financeira
+ou algoritmo de saldo foi alterado na Tarefa 3.

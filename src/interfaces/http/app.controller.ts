@@ -16,7 +16,6 @@ import {
   Res,
   ServiceUnavailableException,
   UnprocessableEntityException,
-  UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import {
@@ -27,7 +26,6 @@ import {
 import { HealthService } from '../../infrastructure/telemetry/health.service';
 import { MetricsService } from '../../infrastructure/telemetry/metrics.service';
 import { SubmitWagerRequestDto } from './dtos';
-import { ChallengeProviderIdentityGuard } from './provider-identity.guard';
 
 @Controller()
 export class AppController {
@@ -39,7 +37,6 @@ export class AppController {
     private readonly metrics: MetricsService,
   ) {}
 
-  @UseGuards(ChallengeProviderIdentityGuard)
   @HttpCode(HttpStatus.OK)
   @Post('wagering/transactions')
   @AuthorizeResource({ resource: 'wallet', capability: 'wager.submit', parameter: 'body' })
@@ -96,7 +93,6 @@ export class AppController {
       });
   }
 
-  @UseGuards(ChallengeProviderIdentityGuard)
   @Get('wagering/transactions/:transactionId')
   @AuthorizeResource({ resource: 'transaction' })
   async getTransaction(@Param('transactionId') transactionId: string) {
@@ -105,7 +101,6 @@ export class AppController {
     return transaction;
   }
 
-  @UseGuards(ChallengeProviderIdentityGuard)
   @Get('providers/:providerId/wagering/transactions/:externalTransactionId')
   @AuthorizeResource({ resource: 'transaction', external: true })
   async getProviderTransaction(
@@ -141,7 +136,6 @@ export class AppController {
     return this.metrics.renderPrometheus();
   }
 
-  @UseGuards(ChallengeProviderIdentityGuard)
   @Get('operations/quarantine')
   @AuthorizeResource({ resource: 'operator', capability: 'quarantine.read' })
   quarantine(@Headers('x-limit') rawLimit?: string) {
@@ -149,7 +143,6 @@ export class AppController {
     return this.service.listQuarantine(limit);
   }
 
-  @UseGuards(ChallengeProviderIdentityGuard)
   @Post('operations/quarantine/:consumerName/:messageId/resolve')
   @AuthorizeResource({ resource: 'operator', capability: 'quarantine.resolve' })
   async resolveQuarantine(

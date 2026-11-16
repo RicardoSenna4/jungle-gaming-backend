@@ -308,3 +308,21 @@ Arquivos criados/modificados nesta tarefa:
 - `test/integration/authorization-persistence.spec.ts`
 - `test/integration/provider-authorization-audit.spec.ts`
 - `test/unit/provider-identity.guard.spec.ts`
+
+## 2026-11-16 — Tarefa 3: autorização financeira HTTP
+
+Worktree `/workspace/jungle-auth-financial`, branch
+`security/financial-endpoint-authorization`, baseada em `a989e74` (Tarefa 2).
+`origin/main` novamente consultada por fetch: `b4c0bad`; checkouts anteriores limpos.
+`AuthorizeResource` une guard JWT e política; resposta 401 padronizada para ausência
+de principal. Fixture HTTP compartilhável com criptografia/JWKS, Nest e PG reais.
+Quatro testes adicionais exercitam todos os endpoints/tipos financeiros, dois
+providers, recursos exclusivos/compartilhados, falta de grants, issuer/sub divergente,
+disputa de saldo, 12 replays concorrentes e requisição bloqueada durante revogação
+observada no PostgreSQL. Regras financeiras, domínio e migrations inalterados.
+Arquivos: decorator/interceptor, ResourceAuthorization, controllers App/Wallet,
+runner, `test/helpers/oidc-http-fixture.ts`, novo spec financeiro, ADR-019 e TESTING.
+Typecheck/lint/format/build passaram; teste focado: 4 pass, 0 fail.
+Regressão final da Tarefa 3: 104 testes em 15 targets, 0 falhas/erros/skips;
+PostgreSQL e LocalStack reais, migrations sem pendências. Sem push/merge ou CI
+remoto confirmado; branch mantida separada para revisão.

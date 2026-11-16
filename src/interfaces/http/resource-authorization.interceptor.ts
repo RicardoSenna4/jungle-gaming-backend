@@ -1,4 +1,6 @@
 import {
+  applyDecorators,
+  UseGuards,
   CallHandler,
   ExecutionContext,
   Injectable,
@@ -12,11 +14,15 @@ import {
   ResourceAuthorization,
   ResourcePolicy,
 } from '../../application/authorization/resource-authorization';
-import { AuthenticatedRequest } from './provider-identity.guard';
+import { AuthenticatedRequest, ChallengeProviderIdentityGuard } from './provider-identity.guard';
 
 export const resourcePolicyKey = 'resource-authorization';
 export const PublicResource = () => SetMetadata('resource-public', true);
-export const AuthorizeResource = (policy: ResourcePolicy) => SetMetadata(resourcePolicyKey, policy);
+export const AuthorizeResource = (policy: ResourcePolicy) =>
+  applyDecorators(
+    SetMetadata(resourcePolicyKey, policy),
+    UseGuards(ChallengeProviderIdentityGuard),
+  );
 
 @Injectable()
 export class ResourceAuthorizationInterceptor implements NestInterceptor {
