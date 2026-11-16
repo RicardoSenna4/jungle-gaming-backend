@@ -356,5 +356,4 @@ describeSqs('LocalStack SQS FIFO end-to-end', () => {
       else process.env.SQS_VISIBILITY_TIMEOUT = previous;
     }
   });
-
 });
