@@ -3,7 +3,7 @@ import type { JsonWebKey as NodeJsonWebKey } from 'node:crypto';
 
 export interface AuthenticatedProviderPrincipal {
   subject: string;
-  providerId: string;
+  providerId?: string;
   issuer: string;
   claims: Record<string, unknown>;
 }
@@ -47,7 +47,10 @@ export class OidcJwtVerifier {
     this.readPositiveInteger(process.env.OIDC_JWKS_CACHE_TTL_SECONDS, 300) * 1_000;
   private readonly timeoutMs = this.readPositiveInteger(process.env.OIDC_HTTP_TIMEOUT_MS, 3_000);
 
-  async verify(authorization: string | undefined): Promise<AuthenticatedProviderPrincipal> {
+  async verify(
+    authorization: string | undefined,
+    requireProvider = true,
+  ): Promise<AuthenticatedProviderPrincipal> {
     const token = this.readBearerToken(authorization);
     const [encodedHeader, encodedPayload, encodedSignature] = token.split('.');
     if (!encodedHeader || !encodedPayload || !encodedSignature)
@@ -81,7 +84,9 @@ export class OidcJwtVerifier {
 
     const subject = this.requiredString(claims.sub, 'INVALID_TOKEN_SUBJECT');
     const providerClaim = process.env.OIDC_PROVIDER_ID_CLAIM ?? 'providerId';
-    const providerId = this.requiredString(claims[providerClaim], 'TOKEN_PROVIDER_MISSING');
+    const providerId = requireProvider
+      ? this.requiredString(claims[providerClaim], 'TOKEN_PROVIDER_MISSING')
+      : undefined;
     return { subject, providerId, issuer, claims };
   }
 

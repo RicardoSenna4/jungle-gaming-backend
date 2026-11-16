@@ -56,6 +56,13 @@ describe('ChallengeProviderIdentityGuard', () => {
     await expect(guard.canActivate(context({ headers: {} }))).resolves.toBe(true);
   });
 
+  it('fails closed for an unknown auth mode', async () => {
+    process.env.AUTH_MODE = 'mistyped-oidc';
+    await expect(
+      new ChallengeProviderIdentityGuard().canActivate(context({ headers: {} })),
+    ).rejects.toMatchObject({ response: { errorCode: 'AUTH_MODE_INVALID' } });
+  });
+
   it('accepts a valid RS256 token and binds its provider identity to the request', async () => {
     configure();
     const guard = new ChallengeProviderIdentityGuard(new OidcJwtVerifier());

@@ -1,3 +1,7 @@
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { ResourceAuthorizationInterceptor } from './interfaces/http/resource-authorization.interceptor';
+import { ResourceAuthorization } from './application/authorization/resource-authorization';
+import { AuthorizationStore } from './application/authorization/authorization-store';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
@@ -24,6 +28,9 @@ import { OidcJwtVerifier } from './interfaces/http/oidc-jwt.verifier';
   ],
   controllers: [AppController, WalletController],
   providers: [
+    AuthorizationStore,
+    ResourceAuthorization,
+    { provide: APP_INTERCEPTOR, useClass: ResourceAuthorizationInterceptor },
     WagerProcessingService,
     WalletRepository,
     WalletService,

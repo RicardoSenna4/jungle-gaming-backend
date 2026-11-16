@@ -26,11 +26,17 @@ export class ChallengeProviderIdentityGuard implements CanActivate {
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    if ((process.env.AUTH_MODE ?? 'challenge').toLowerCase() !== 'oidc') return true;
+    const mode = (process.env.AUTH_MODE ?? 'challenge').toLowerCase();
+    if (mode === 'challenge') return true;
+    if (mode !== 'oidc') throw new ServiceUnavailableException({ errorCode: 'AUTH_MODE_INVALID' });
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     let principal: AuthenticatedProviderPrincipal;
     try {
-      principal = await this.verifier.verify(request.headers?.authorization);
+      principal = await this.verifier.verify(
+        request.headers?.authorization,
+        Reflect.getMetadata('resource-authorization', context.getHandler?.() ?? {})?.resource !==
+          'operator',
+      );
     } catch (error) {
       if (error instanceof OidcJwtError && error.retryable) {
         throw new ServiceUnavailableException({ errorCode: error.message, retryable: true });
@@ -39,12 +45,10 @@ export class ChallengeProviderIdentityGuard implements CanActivate {
       throw new UnauthorizedException({ errorCode: code });
     }
 
-    const requestedProviderId =
-      typeof request.body?.providerId === 'string'
-        ? request.body.providerId
-        : request.params?.providerId;
-    if (requestedProviderId && requestedProviderId !== principal.providerId) {
-      throw new ForbiddenException({ errorCode: 'PROVIDER_IDENTITY_MISMATCH' });
+    for (const requestedProviderId of [request.body?.providerId, request.params?.providerId]) {
+      if (requestedProviderId !== undefined && requestedProviderId !== principal.providerId) {
+        throw new ForbiddenException({ errorCode: 'PROVIDER_IDENTITY_MISMATCH' });
+      }
     }
     request.principal = principal;
     return true;

@@ -1,3 +1,4 @@
+import { AuthorizeResource, PublicResource } from './resource-authorization.interceptor';
 import {
   BadRequestException,
   Body,
@@ -41,6 +42,7 @@ export class AppController {
   @UseGuards(ChallengeProviderIdentityGuard)
   @HttpCode(HttpStatus.OK)
   @Post('wagering/transactions')
+  @AuthorizeResource({ resource: 'wallet', capability: 'wager.submit', parameter: 'body' })
   submit(
     @Headers('idempotency-key') key: string | undefined,
     @Body() body: SubmitWagerRequestDto,
@@ -96,6 +98,7 @@ export class AppController {
 
   @UseGuards(ChallengeProviderIdentityGuard)
   @Get('wagering/transactions/:transactionId')
+  @AuthorizeResource({ resource: 'transaction' })
   async getTransaction(@Param('transactionId') transactionId: string) {
     const transaction = await this.service.findTransactionById(transactionId);
     if (!transaction) throw new NotFoundException({ errorCode: 'TRANSACTION_NOT_FOUND' });
@@ -104,6 +107,7 @@ export class AppController {
 
   @UseGuards(ChallengeProviderIdentityGuard)
   @Get('providers/:providerId/wagering/transactions/:externalTransactionId')
+  @AuthorizeResource({ resource: 'transaction', external: true })
   async getProviderTransaction(
     @Param('providerId') providerId: string,
     @Param('externalTransactionId') externalTransactionId: string,
@@ -117,11 +121,13 @@ export class AppController {
   }
 
   @Get('health/live')
+  @PublicResource()
   live() {
     return { status: 'ok' };
   }
 
   @Get('health/ready')
+  @PublicResource()
   async ready() {
     const result = await this.health.readiness();
     if (result.status !== 'ok') throw new ServiceUnavailableException(result);
@@ -130,12 +136,14 @@ export class AppController {
 
   @Get('metrics')
   @Header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8')
+  @PublicResource()
   metricsEndpoint(): string {
     return this.metrics.renderPrometheus();
   }
 
   @UseGuards(ChallengeProviderIdentityGuard)
   @Get('operations/quarantine')
+  @AuthorizeResource({ resource: 'operator', capability: 'quarantine.read' })
   quarantine(@Headers('x-limit') rawLimit?: string) {
     const limit = rawLimit && /^\d+$/.test(rawLimit) ? Number(rawLimit) : 100;
     return this.service.listQuarantine(limit);
@@ -143,6 +151,7 @@ export class AppController {
 
   @UseGuards(ChallengeProviderIdentityGuard)
   @Post('operations/quarantine/:consumerName/:messageId/resolve')
+  @AuthorizeResource({ resource: 'operator', capability: 'quarantine.resolve' })
   async resolveQuarantine(
     @Param('consumerName') consumerName: string,
     @Param('messageId') messageId: string,
