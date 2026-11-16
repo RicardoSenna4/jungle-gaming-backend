@@ -1,0 +1,277 @@
+{
+  "root_group": {
+    "id": "d41d8cd98f00b204e9800998ecf8427e",
+    "groups": [
+      {
+        "checks": [
+          {
+            "name": "ledger reconciles after load",
+            "path": "::teardown::ledger reconciles after load",
+            "id": "e84660174c0cefbeb15771a85683f9de",
+            "passes": 4,
+            "fails": 0
+          }
+        ],
+        "name": "teardown",
+        "path": "::teardown",
+        "id": "a8a9942382e8ffe2e56ef29e664b8229",
+        "groups": []
+      }
+    ],
+    "checks": [
+      {
+        "path": "::financial response expected",
+        "id": "a65f7b04dd5a78881157e5a8779b6628",
+        "passes": 20,
+        "fails": 0,
+        "name": "financial response expected"
+      }
+    ],
+    "name": "",
+    "path": ""
+  },
+  "options": {
+    "noColor": false,
+    "summaryTrendStats": [
+      "avg",
+      "min",
+      "med",
+      "max",
+      "p(50)",
+      "p(95)",
+      "p(99)"
+    ],
+    "summaryTimeUnit": ""
+  },
+  "state": {
+    "isStdOutTTY": false,
+    "isStdErrTTY": false,
+    "testRunDurationMs": 693.748537
+  },
+  "metrics": {
+    "data_sent": {
+      "type": "counter",
+      "contains": "data",
+      "values": {
+        "count": 9924,
+        "rate": 14304.895031439899
+      }
+    },
+    "data_received": {
+      "type": "counter",
+      "contains": "data",
+      "values": {
+        "count": 9812,
+        "rate": 14143.453249545375
+      }
+    },
+    "http_req_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(95)": 133.8847037,
+        "p(99)": 136.57174881,
+        "avg": 74.74670303571428,
+        "min": 5.408718,
+        "med": 82.4069565,
+        "max": 137.527143,
+        "p(50)": 82.4069565
+      }
+    },
+    "http_req_receiving": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "med": 0.11436299999999999,
+        "max": 1.877552,
+        "p(50)": 0.11436299999999999,
+        "p(95)": 0.17690465,
+        "p(99)": 1.4184831500000008,
+        "avg": 0.16802207142857145,
+        "min": 0.036215
+      }
+    },
+    "checks": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 1,
+        "passes": 24,
+        "fails": 0
+      },
+      "thresholds": {
+        "rate==1": {
+          "ok": true
+        }
+      }
+    },
+    "unexpected_failure": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "fails": 20,
+        "rate": 0,
+        "passes": 0
+      },
+      "thresholds": {
+        "rate==0": {
+          "ok": true
+        }
+      }
+    },
+    "http_reqs": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "rate": 40.360445473631316,
+        "count": 28
+      }
+    },
+    "http_req_blocked": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 0.20636371428571423,
+        "min": 0.002603,
+        "med": 0.004386,
+        "max": 1.401674,
+        "p(50)": 0.004386,
+        "p(95)": 0.9688089,
+        "p(99)": 1.2870482000000003
+      }
+    },
+    "http_req_duration{expected_response:true}": {
+      "values": {
+        "max": 137.527143,
+        "p(50)": 82.4069565,
+        "p(95)": 133.8847037,
+        "p(99)": 136.57174881,
+        "avg": 74.74670303571428,
+        "min": 5.408718,
+        "med": 82.4069565
+      },
+      "type": "trend",
+      "contains": "time"
+    },
+    "http_req_waiting": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "med": 81.751736,
+        "max": 137.337938,
+        "p(50)": 81.751736,
+        "p(95)": 133.73972285,
+        "p(99)": 136.39392782000002,
+        "avg": 74.54249928571427,
+        "min": 5.334587
+      }
+    },
+    "http_req_sending": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(99)": 0.10747208,
+        "avg": 0.036181678571428566,
+        "min": 0.011908,
+        "med": 0.028007,
+        "max": 0.108524,
+        "p(50)": 0.028007,
+        "p(95)": 0.09458159999999996
+      }
+    },
+    "http_req_tls_handshaking": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(50)": 0,
+        "p(95)": 0,
+        "p(99)": 0,
+        "avg": 0,
+        "min": 0,
+        "med": 0,
+        "max": 0
+      }
+    },
+    "iterations": {
+      "values": {
+        "count": 20,
+        "rate": 28.82888962402237
+      },
+      "type": "counter",
+      "contains": "default"
+    },
+    "http_req_connecting": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "max": 0.950834,
+        "p(50)": 0,
+        "p(95)": 0.8881497999999999,
+        "p(99)": 0.93845207,
+        "avg": 0.17049367857142858,
+        "min": 0,
+        "med": 0
+      }
+    },
+    "iteration_duration": {
+      "values": {
+        "p(50)": 92.61430999999999,
+        "p(95)": 135.22217725000002,
+        "p(99)": 137.25048425,
+        "avg": 95.87637520000001,
+        "min": 60.092938,
+        "med": 92.61430999999999,
+        "max": 137.757561
+      },
+      "type": "trend",
+      "contains": "time"
+    },
+    "http_req_failed": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 0,
+        "passes": 0,
+        "fails": 28
+      }
+    }
+  },
+  "setup_data": [
+    {
+      "id": "c2c6b42b-519b-4595-9cc5-e93e41b1f21d",
+      "playerId": "load-parallel-0",
+      "version": 1,
+      "balance": {
+        "amount": "1000.00",
+        "currency": "BRL"
+      }
+    },
+    {
+      "balance": {
+        "amount": "1000.00",
+        "currency": "BRL"
+      },
+      "id": "b7e1a62d-71dc-4dc5-addc-7fe34a0f9aad",
+      "playerId": "load-parallel-1",
+      "version": 1
+    },
+    {
+      "balance": {
+        "amount": "1000.00",
+        "currency": "BRL"
+      },
+      "id": "a14a09ae-77fc-45f9-8090-4389810f1589",
+      "playerId": "load-parallel-2",
+      "version": 1
+    },
+    {
+      "balance": {
+        "amount": "1000.00",
+        "currency": "BRL"
+      },
+      "id": "e3281128-fc01-45b6-b00b-5fb6f909f4a4",
+      "playerId": "load-parallel-3",
+      "version": 1
+    }
+  ]
+}

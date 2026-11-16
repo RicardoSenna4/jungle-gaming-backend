@@ -1,0 +1,59 @@
+# Dedicated disposable stack. No host ports or production endpoints.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      { POSTGRES_DB: jungle_load_test, POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres }
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d jungle_load_test']
+      interval: 2s
+      retries: 30
+  localstack:
+    image: localstack/localstack:3.8
+    environment: { SERVICES: sqs, AWS_DEFAULT_REGION: us-east-1 }
+    volumes: ['../infra/localstack/init-queues.sh:/etc/localstack/init/ready.d/init-queues.sh:ro']
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'test -f /var/lib/localstack/.ready || curl -fsS localhost:4566/_localstack/health | grep -q sqs',
+        ]
+      interval: 2s
+      retries: 40
+  api:
+    image: oven/bun:1.1.38
+    working_dir: /app
+    volumes: ['..:/app:ro']
+    command: ['sh', '-c', 'bun performance/migrate.ts && bun dist/main.js']
+    environment:
+      NO_PROXY: localhost,127.0.0.1,localstack,postgres,api
+      no_proxy: localhost,127.0.0.1,localstack,postgres,api
+      DB_HOST: postgres
+      DB_NAME: jungle_load_test
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      AUTH_MODE: challenge
+      NODE_ENV: test
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      SQS_ENDPOINT: http://localstack:4566
+      SQS_QUEUE_URL: http://localstack:4566/000000000000/wager-transactions.fifo
+      SQS_DLQ_QUEUE_URL: http://localstack:4566/000000000000/wager-transactions-dlq.fifo
+      SQS_EVENTS_QUEUE_URL: http://localstack:4566/000000000000/wager-events.fifo
+      ENABLE_SQS_CONSUMER: 'true'
+      ENABLE_OUTBOX_PUBLISHER: 'true'
+      ENABLE_DB_METRICS_SAMPLER: 'true'
+    depends_on:
+      postgres: { condition: service_healthy }
+      localstack: { condition: service_healthy }
+  k6:
+    image: grafana/k6:0.54.0
+    profiles: [load]
+    user: '0'
+    volumes: ['./:/scripts:ro', './results:/results']
+    environment:
+      NO_PROXY: localhost,127.0.0.1,localstack,postgres,api
+      no_proxy: localhost,127.0.0.1,localstack,postgres,api
+      BASE_URL: http://api:3000
+      LOAD_DISPOSABLE: 'yes'

@@ -541,3 +541,10 @@ Amostrador SQL opcional preserva /metrics em memória e labels limitadas. Overri
 OIDC usa OAuth2 sem bypass de guard. Promtool validado; serviços HTTP200, dashboard
 provisionado e scrape up=1 reais. 136 testes/23 targets, zero skips/falhas;
 typecheck/lint/format/build aprovados. Sem Alertmanager/entrega externa configurada.
+
+## 2026-11-16 — Tarefa 11
+
+Suíte k6 separada em Compose descartável,5cenários HTTP, lote SQS real e validação
+SQL/HTTP posterior. 31wallets reconciliadas,20Inbox,424eventos publicados; checks
+aprovados. Relatório e summaries reais versionados, sem extrapolar ensaio curto
+de4VUs para produção. Suíte funcional136/23targets sem skips; qualidade aprovada.

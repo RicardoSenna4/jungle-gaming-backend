@@ -152,3 +152,5 @@ em [OIDC_HARDENING](docs/OIDC_HARDENING.md). Em produção use issuer/JWKS HTTPS
 fixtures locais habilitam loopback somente em test/development.
 
 Observabilidade opcional: [Prometheus e Grafana](docs/OBSERVABILITY.md).
+
+Carga isolada: [reprodução](performance/README.md) e [relatório real](docs/PERFORMANCE_REPORT.md).

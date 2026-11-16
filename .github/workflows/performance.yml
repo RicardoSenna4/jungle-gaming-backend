@@ -1,0 +1,22 @@
+name: disposable k6 exercise
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.1.38'
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - run: python3 performance/run.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: disposable-k6-evidence
+          path: performance/results/

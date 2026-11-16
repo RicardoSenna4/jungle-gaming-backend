@@ -1,0 +1,53 @@
+# TYPE outbox_publish_total counter
+outbox_publish_total{result="published"} 424
+# TYPE sqs_messages_acknowledged_total counter
+sqs_messages_acknowledged_total 20
+# TYPE sqs_messages_received_total counter
+sqs_messages_received_total 20
+# TYPE wager_idempotent_replays_total counter
+wager_idempotent_replays_total 20
+# TYPE wager_transactions_total counter
+wager_transactions_total{kind="bet",source="http",status="processed"} 101
+wager_transactions_total{kind="bet",source="http",status="rejected"} 20
+wager_transactions_total{kind="win",source="http",status="processed"} 20
+wager_transactions_total{kind="loss",source="http",status="processed"} 20
+wager_transactions_total{kind="refund",source="http",status="processed"} 20
+wager_transactions_total{kind="rollback",source="http",status="processed"} 20
+wager_transactions_total{kind="bet",source="sqs",status="processed"} 20
+# TYPE wallet_reconciliations_total counter
+wallet_reconciliations_total{consistent="true"} 61
+# TYPE database_metrics_collection_success gauge
+database_metrics_collection_success 1
+# TYPE outbox_oldest_pending_age_seconds gauge
+outbox_oldest_pending_age_seconds 0
+# TYPE outbox_pending_messages gauge
+outbox_pending_messages 0
+# TYPE quarantine_messages gauge
+quarantine_messages{status="OPEN"} 0
+quarantine_messages{status="REDRIVING"} 0
+quarantine_messages{status="RELEASED"} 0
+quarantine_messages{status="RESOLVED"} 0
+# TYPE sqs_dlq_messages gauge
+sqs_dlq_messages 0
+# TYPE wager_processing_duration_seconds histogram
+wager_processing_duration_seconds_bucket{source="http",le="0.01"} 10
+wager_processing_duration_seconds_bucket{source="http",le="0.05"} 110
+wager_processing_duration_seconds_bucket{source="http",le="0.1"} 183
+wager_processing_duration_seconds_bucket{source="http",le="0.5"} 201
+wager_processing_duration_seconds_bucket{source="http",le="1"} 201
+wager_processing_duration_seconds_bucket{source="http",le="5"} 201
+wager_processing_duration_seconds_bucket{source="http",le="10"} 201
+wager_processing_duration_seconds_bucket{source="http",le="+Inf"} 201
+wager_processing_duration_seconds_sum{source="http"} 11.084999999999988
+wager_processing_duration_seconds_count{source="http"} 201
+wager_processing_duration_seconds_bucket{source="sqs",le="0.01"} 0
+wager_processing_duration_seconds_bucket{source="sqs",le="0.05"} 3
+wager_processing_duration_seconds_bucket{source="sqs",le="0.1"} 9
+wager_processing_duration_seconds_bucket{source="sqs",le="0.5"} 20
+wager_processing_duration_seconds_bucket{source="sqs",le="1"} 20
+wager_processing_duration_seconds_bucket{source="sqs",le="5"} 20
+wager_processing_duration_seconds_bucket{source="sqs",le="10"} 20
+wager_processing_duration_seconds_bucket{source="sqs",le="+Inf"} 20
+wager_processing_duration_seconds_sum{source="sqs"} 2.186
+wager_processing_duration_seconds_count{source="sqs"} 20
+
