@@ -150,3 +150,5 @@ Os resultados vermelhos de commits intermediários permanecem no histórico; a e
 Detalhes de confiança de URLs, cache/rotação, timeouts e inicialização OIDC estão
 em [OIDC_HARDENING](docs/OIDC_HARDENING.md). Em produção use issuer/JWKS HTTPS;
 fixtures locais habilitam loopback somente em test/development.
+
+Observabilidade opcional: [Prometheus e Grafana](docs/OBSERVABILITY.md).

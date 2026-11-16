@@ -1,3 +1,4 @@
+import { DatabaseMetricsSampler } from './infrastructure/telemetry/database-metrics.sampler';
 import { QuarantineManagementService } from './application/quarantine/quarantine-management.service';
 import { MetricsAccessGuard } from './interfaces/http/metrics-access.guard';
 import { AdministrativeClaimsPolicy } from './application/authorization/administrative-claims-policy';
@@ -31,6 +32,7 @@ import { OidcJwtVerifier } from './interfaces/http/oidc-jwt.verifier';
   ],
   controllers: [AppController, WalletController],
   providers: [
+    DatabaseMetricsSampler,
     QuarantineManagementService,
     AdministrativeClaimsPolicy,
     MetricsAccessGuard,

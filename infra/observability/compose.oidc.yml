@@ -1,0 +1,6 @@
+# Use alongside the root Compose after generating the collector configuration.
+services:
+  prometheus:
+    volumes:
+      - ${PROMETHEUS_OIDC_CONFIG_FILE:?generated authenticated config required}:/etc/prometheus/prometheus.yml:ro
+      - ${PROMETHEUS_CLIENT_SECRET_FILE:?secret file required}:/run/secrets/jungle_metrics_client_secret:ro

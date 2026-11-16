@@ -79,6 +79,11 @@ postgresTargets.push({
   integration: true,
 });
 
+postgresTargets.push({
+  id: 'database-metrics',
+  path: 'test/integration/database-metrics.spec.ts',
+  integration: true,
+});
 const sqsTarget: TestTarget = {
   id: 'sqs-localstack',
   path: 'test/integration/sqs-localstack.spec.ts',

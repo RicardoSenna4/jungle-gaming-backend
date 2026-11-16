@@ -533,3 +533,11 @@ concorrência entre conexões e SIGKILL real pós-commit. Banco exclusivo do tes
 sem alteração de saldo/ledger principal. 135 testes/22 targets passaram, sem skips;
 typecheck/lint/format/build passaram. Sem exactly-once fim a fim: efeitos externos
 exigem Outbox própria. Conflitos de payload seguem retry/DLQ configurado no broker.
+
+## 2026-11-16 — Tarefa 10
+
+Profile opcional Prometheus/Grafana, dashboard provisionado e seis alertas.
+Amostrador SQL opcional preserva /metrics em memória e labels limitadas. Override
+OIDC usa OAuth2 sem bypass de guard. Promtool validado; serviços HTTP200, dashboard
+provisionado e scrape up=1 reais. 136 testes/23 targets, zero skips/falhas;
+typecheck/lint/format/build aprovados. Sem Alertmanager/entrega externa configurada.
