@@ -226,3 +226,85 @@ Bun está delimitada na ADR. A passagem desses testes não certifica isolamento.
 Validação local: typecheck/lint/format/build passaram; sem migrations pendentes;
 `test:all` com 93 testes em 13 targets, zero falhas/erros/skips, PG/LocalStack reais.
 Nenhuma integração na main: CI dos novos commits não confirmado.
+
+## 2026-11-16 — Tarefa 2: associações persistentes e enforcement OIDC
+
+Worktree `/workspace/jungle-auth-bindings`, branch `security/provider-resource-bindings`,
+baseada na Tarefa 1 (`c77401e`); `origin/main` atualizada por fetch em `b4c0bad`.
+Checkouts anteriores preservados, sem mudanças locais do usuário sobrescritas.
+
+Implementado: cinco entidades/tabelas de autorização, PKs compostas, FK de wallet
+RESTRICT, CHECKs, índices e auditoria append-only por trigger. Provisionamento
+idempotente/revogável em API administrativa interna; sem endpoint público para grants.
+Identidades issuer/subject/provider e permissões por recurso são persistentes;
+wallet admite múltiplos providers. OIDC nega sem binding/grant, desconhece recursos
+não autorizados e verifica autorização antes de replay. Operadores têm grants
+separados de leitura/resolução, sem provider fictício. Challenge preservado.
+
+A autorização HTTP usa transação e locks compartilhados via EntityManager.execute;
+revogação aguarda operações em curso. HTTP 422 preserva resultado REJECTED durável.
+Nenhuma alteração nas regras financeiras, domínio ou cinco migrations históricas.
+MikroORM snapshot ganhou cinco tabelas; os sete registros de tabelas anteriores
+foram comparados estruturalmente e permaneceram idênticos. Sem atribuição automática
+por histórico, OPENING, primeiro provider ou criação. Grants iniciais implícitos vazios.
+
+Validação final nesta instância Linux (Bun 1.1.38, Node 24.22.1, PostgreSQL 16,
+LocalStack 3.8, Docker Engine/Compose disponíveis; Docker Desktop local não confirmado):
+
+- typecheck, lint, format:check e build passaram.
+- test:all: **100 testes, 14 targets, zero falhas/erros/skips**; inclui concorrência,
+  filas SQS reais e 13 casos de integração de segurança (8 HTTP, 5 PostgreSQL).
+- Criar grants, duplicidades/constraints/índices, oito concessões simultâneas,
+  revogação observada com waiters reais, reconcessão e issuer/sub/provider validados.
+- Migration dedicada: banco descartável criado para o teste, história financeira
+  de dois providers anterior à migration preservada; sem backfill; rollback sem
+  confirmação recusado; down/up/restauração com metadados e grants revogados
+  preservados; snapshots das seis tabelas financeiras/operacionais idênticos.
+- db:migration:check sem pendências e docker compose config -q válido.
+- pg_dump de autorização e checksum executados localmente com sucesso; CI passa
+  a gerar esse backup antes do rollback da cadeia no banco descartável.
+- Testes executados em `jungle_auth_bindings_test` e `authz_migration_*`; o banco
+  original da Tarefa 1 não foi migrado/truncado por esta tarefa. Teste descarta só
+  seu próprio authz_migration_* após uso. Relatórios JUnit em .test-results ignorado.
+- Smoke de crash/restart do container não executado nesta tarefa; não houve
+  alteração de Dockerfile, Compose ou algoritmos financeiros/workers.
+
+Limites: OIDC exige provisionamento administrativo aprovado antes do rollout.
+O store confia no processo administrativo; ator fornecido é atribuição, não login.
+DB role de desenvolvimento do Compose é privilegiada; DDL/TRUNCATE/provisionamento
+precisam de credenciais separadas em produção. Sem RLS, IdP hospedado, ingress
+externo autenticado de SQS ou UI administrativa. Backups/auditoria exigem acesso
+restrito. AUTHZ_ROLLBACK_BACKUP_CONFIRMED é confirmação operacional, não verificação
+automática de backup. Não reabrir OIDC com versão antiga permissiva no rollback.
+
+Branch separada, sem push/merge; CI dos novos commits não confirmado.
+
+Arquivos criados/modificados nesta tarefa:
+
+- `.github/workflows/ci.yml`
+- `ARCHITECTURE.md`
+- `README.md`
+- `docs/02_ADR_REGISTER.md`
+- `docs/14_PROGRESS.md`
+- `docs/API.md`
+- `docs/OPEN_ISSUES.md`
+- `docs/REQUIREMENTS_TRACEABILITY.md`
+- `docs/TESTING.md`
+- `docs/adr/019-provider-resource-authorization.md`
+- `docs/adr/README.md`
+- `scripts/test-suite-runner.ts`
+- `src/app.module.ts`
+- `src/application/authorization/authorization-store.ts`
+- `src/application/authorization/resource-authorization.ts`
+- `src/infrastructure/database/migrations/.snapshot-jungle.json`
+- `src/infrastructure/database/migrations/Migration20261116120000.ts`
+- `src/infrastructure/database/mikro-orm.config.ts`
+- `src/infrastructure/database/mikro-orm/authorization.entities.ts`
+- `src/interfaces/http/app.controller.ts`
+- `src/interfaces/http/oidc-jwt.verifier.ts`
+- `src/interfaces/http/provider-identity.guard.ts`
+- `src/interfaces/http/resource-authorization.interceptor.ts`
+- `src/interfaces/http/wallet.controller.ts`
+- `test/integration/authorization-persistence.spec.ts`
+- `test/integration/provider-authorization-audit.spec.ts`
+- `test/unit/provider-identity.guard.spec.ts`

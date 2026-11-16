@@ -56,13 +56,12 @@
 
 **Nota sobre o histórico:** houve CI vermelho em commits intermediários. Não se deve apagar essas tentativas para fazer uma declaração de sucesso; o gate relevante é a execução vinculada ao commit final.
 
-## Auditoria de autorização — Tarefa 1
+## Autorização — Tarefas 1 e 2
 
-Complementa R05, R12, R19 e R31 sem alterar seus contratos financeiros.
-A [ADR-019](adr/019-provider-resource-authorization.md) contém os achados A1–A7,
-a matriz de permissões proposta, tratamento de legados e plano reversível.
-O [teste real de auditoria](../test/integration/provider-authorization-audit.spec.ts)
-é registrado no runner obrigatório e reproduz acessos permitidos, negações já
-existentes e exposições entre provedores autenticados. As assertions `AUDIT GAP`
-caracterizam vulnerabilidades atuais; passar não comprova isolamento.
-Enforcement e migration continuam pendentes; não se aplica uma nova afirmação de CI.
+Complementa R02, R05, R12, R19 e R31 sem mudar os contratos financeiros.
+A [ADR-019](adr/019-provider-resource-authorization.md) contém matriz, legados,
+implementação e rollback. [Testes HTTP](../test/integration/provider-authorization-audit.spec.ts)
+agora exigem isolamento; [testes PostgreSQL](../test/integration/authorization-persistence.spec.ts)
+validam grants, constraints, concorrência, revogação e rollback/restauração.
+Ambos são registrados no runner obrigatório; a execução local da Tarefa 2 está
+registrada em [progresso](14_PROGRESS.md), sem alegar aprovação de CI remoto.

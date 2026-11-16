@@ -65,18 +65,24 @@ SQS gerenciado em AWS; duplicatas continuam possíveis fora da janela FIFO.
 A presença de métodos `runOnce` não substitui prova de timer/agendamento real.
 A execução de SIGKILL/SIGTERM da API já foi provada no CI, mas injeção de falha entre send/mark da outbox e entre commit/ACK do consumer continuam casos distintos, que não podem ser inferidos apenas da reinicialização. Ver [FAILURE_RECOVERY](FAILURE_RECOVERY.md).
 
-## Auditoria de autorização (Tarefa 1)
+## Autorização persistente (Tarefas 1 e 2)
 
-`provider-authorization-audit.spec.ts` está registrado em `test:integration:postgres`
-e `test:all`. Usa Nest HTTP, PostgreSQL e JWKS HTTP local com tokens RSA assinados,
-sem substituir integrações por mocks. LocalStack real deve estar ativo para readiness.
-Executar `bun run build` antes da suíte: o caso de GET com body usa adicionalmente
-a API compilada em Node, caminho suportado por `bun run start`, e cliente Node,
-pois o transporte Bun testado descarta esse body. O teste encerra os processos criados.
-O runner continua rejeitando skips, zero testes e specs não registradas.
+`provider-authorization-audit.spec.ts` agora testa o enforcement da ADR-019:
+permitidos/negados, wallet compartilhada sem compartilhamento de transações,
+revogação antes de replay, REJECTED durável, crédito inicial separado e operações
+privilegiadas. Os antigos asserts `AUDIT GAP` permanecem no histórico Git e foram
+substituídos por negações, sem skips ou enfraquecimento das garantias.
+Usa Nest HTTP, PostgreSQL e JWKS local com tokens RSA assinados; LocalStack real
+verifica readiness. Execute `bun run build` antes: o caso GET com body também
+executa a API compilada e o cliente em Node, ambos encerrados no teste.
 
-Os casos `AUDIT GAP` esperam a exposição atual para documentá-la: **não são prova
-de isolamento nem critérios de aceitação de produção**. O contrato de negação que
-deverá substituir esses asserts está na [ADR-019](adr/019-provider-resource-authorization.md).
-Não introduzir skips para manter os testes passando quando o enforcement chegar.
-O fixture trunca tabelas somente na base isolada de testes; jamais usar produção.
+`authorization-persistence.spec.ts` testa entidades/constraints, idempotência de
+provisionamento, oito concessões concorrentes, revogação com waiters observados
+no PostgreSQL, legados sem inferência e migration down/up com backup/restauração.
+O teste de migration cria e exclui **somente seu banco descartável** `authz_migration_*`;
+a conta de testes precisa de CREATEDB e visibilidade de pg_stat_activity. Os demais
+fixtures truncam tabelas somente no banco isolado de testes. Nunca executar contra
+produção/dados reais. Ambos os specs estão no runner obrigatório, que rejeita skips.
+
+Rollback com dados exige confirmação explícita após backup verificado; veja a ADR.
+O CI preserva o dump e checksum em `.test-results/` antes do rollback descartável.

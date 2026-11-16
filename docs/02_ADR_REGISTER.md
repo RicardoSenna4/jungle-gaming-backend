@@ -82,8 +82,11 @@
 
 Estas decisões não substituem o enunciado nem os resultados de testes. Para a implementação verificada, consulte [rastreabilidade](REQUIREMENTS_TRACEABILITY.md), [auditoria](FINAL_DELIVERY_AUDIT.md) e [GitHub Actions](https://github.com/RicardoSenna4/jungle-gaming-backend/actions/workflows/ci.yml).
 
-## ADR-019 — Autorização por recurso (PROPOSTA, 2026-11-16)
+## ADR-019 — Autorização por recurso (ADOTADA, 2026-11-16)
 
 A [ADR-019](adr/019-provider-resource-authorization.md) define vínculos persistentes,
 matriz por endpoint, estratégia de dados legados e migration aditiva reversível.
 A Tarefa 1 entrega auditoria e caracterização, sem enforcement novo nem migration.
+
+A Tarefa 2 implementa as associações persistentes, enforcement HTTP e migration
+reversível, com testes de isolamento e PostgreSQL; ver atualização na ADR-019.

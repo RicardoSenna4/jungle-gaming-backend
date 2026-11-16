@@ -1,8 +1,9 @@
 # ADR-019 — Autorização por identidade e vínculos persistentes
 
-Data: 2026-11-16. Estado: **PROPOSTA para implementação posterior**.
-Escopo entregue na Tarefa 1: auditoria, modelo, matriz e testes de caracterização.
-Nenhum enforcement novo, alteração financeira ou migration é entregue nesta tarefa.
+Data: 2026-11-16. Estado: **ADOTADA — associações persistentes e enforcement HTTP implementados na Tarefa 2**.
+O diagnóstico e as evidências da Tarefa 1 abaixo descrevem a base histórica.
+A Tarefa 2 adiciona persistência, enforcement HTTP e testes negativos; ver a seção
+"Implementação da Tarefa 2". Regras financeiras e as cinco migrations históricas foram preservadas.
 Base inspecionada: `origin/main` em `b4c0bad713ba33a343b2727e3613853f1cd06591`,
 confirmada por `git fetch origin main`. Resultados locais não constituem aprovação do CI.
 
@@ -69,7 +70,7 @@ ficar em rede de observabilidade na produção; sua revisão detalhada é outra 
   corpo, message attributes e consumerName escolhidos pelo produtor não provam ator.
   Workers internos precisam de identidade técnica explícita, sem fingir um usuário HTTP.
 
-## Decisão proposta
+## Decisão adotada
 
 Manter autenticação e autorização separadas. Em OIDC, derivar principal somente de
 JWT validado. Consultar um vínculo **ativo** `(issuer, subject, provider_id)` no banco;
@@ -149,13 +150,13 @@ operacional sem capability → 403; recurso inexistente ou não visível → mes
 sem dados, contagem ou cursor. Grant indisponível/DB indisponível → 503, sem
 fallback permissivo. Não reclassificar falta de autorização como erro financeiro.
 
-## Matriz de permissões proposta (não implementada)
+## Matriz de permissões
 
 Rotas de providers requerem principal OIDC e vínculo ativo com provider. Rotas
 operacionais requerem identidade OIDC e grant de operador por issuer/subject;
-o desenho futuro deve distinguir esse principal sem exigir provider fictício.
-Hoje o verifier exige claim de provider em todos os tokens; a adaptação de
-principal operacional faz parte do enforcement posterior, mantendo RS256/JWKS. Na coluna
+o verifier distingue esse principal sem exigir provider fictício, mantendo
+assinatura RS256/JWKS, issuer, audience, tempo e subject. A claim de provider
+continua obrigatória nas rotas financeiras de providers. Na coluna
 provider, A e B são organizações distintas; A+B indica a mesma wallet compartilhada.
 Operadores precisam de identidade autenticada e grant operacional, não herdam
 permissões de providers. `challenge` mantém os contratos atuais para o desafio.
@@ -204,7 +205,7 @@ redrive como efeito colateral. Não introduzir um módulo de propriedade de wall
   Documentar aceitação/enfileiramento confiável antes de ativar restrições externas;
   não converter revogação em alteração retroativa de resultado financeiro.
 
-## Plano de migration reversível (somente projeto; não executado)
+## Plano de migration reversível definido na Tarefa 1 (histórico)
 
 1. Nova migration **aditiva** após `Migration20261116110000`, sem editar as cinco
    existentes. Criar as cinco tabelas de autorização descritas acima. Chaves naturais
@@ -243,7 +244,7 @@ mudar DTO (saldos incoerentes), liberar quarentena por provider no raw JSON (nã
 confiável), RLS isoladamente (pool/identity context ainda não definidos). RLS pode
 ser defesa adicional futura, com testes de pool e workers, não substitui a política.
 
-## Casos de teste e critérios da implementação posterior
+## Casos definidos na Tarefa 1 (histórico; atualizados na Tarefa 2)
 
 Teste executável de auditoria:
 [test/integration/provider-authorization-audit.spec.ts](../../test/integration/provider-authorization-audit.spec.ts),
@@ -273,12 +274,12 @@ negação abaixo, conservando a reprodução no histórico Git. Não usar skips/
 | Legacy sem vínculo, OPENING e raw inválido | OPENING/raw inválido caracterizados | Não inferir owner; operador trata quarentena não atribuível |
 | SQS interno, pending workers, idempotência, AUTH_MODE=challenge | Suíte existente | Preservar domínio/canal confiável; testar ingresso de produção separadamente |
 
-Risco residual: esta entrega **não corrige A1–A7**. Produção exige enforcement,
+Risco residual da Tarefa 1: aquela entrega **não corrigia A1–A7**. Produção exige enforcement,
 provisionamento confiável, testes negativos de matriz e implantação controlada.
 Acesso global de ledger/saldo deve ser aprovado explicitamente pelo contrato de
 compartilhamento; clientes que não o aceitam não recebem essas capabilities.
 
-## Evidência local desta tarefa
+## Evidência local da Tarefa 1 (histórico)
 
 Worktree `/workspace/jungle-auth-audit`, branch `security/provider-authorization-audit`,
 base remota confirmada acima; o checkout original estava limpo e permaneceu intacto.
@@ -302,3 +303,92 @@ PostgreSQL 16 e LocalStack 3.8, ambas as dependências healthy e três filas exi
 
 Resultados JUnit/logs da suíte estão em `.test-results/` (ignorados pelo Git).
 O build e os testes ocorreram nesta instância, não em um novo clone ou no CI remoto.
+
+## Implementação da Tarefa 2
+
+- `Migration20261116120000` cria as cinco tabelas, chaves compostas, FK de wallet
+  com RESTRICT, CHECKs de capabilities/identidade/moeda/timestamps e índices de
+  consulta. Não faz backfill nem altera tabelas ou constraints financeiras.
+- Entidades MikroORM em `authorization.entities.ts`; `AuthorizationStore` oferece
+  concessão idempotente, revogação e reconcessão apenas a código administrativo
+  confiável. Não existe endpoint público de grants. Ator e origem são obrigatórios;
+  quem opera esse código deve autenticar o administrador fora dos DTOs de clientes.
+- Triggers registram alterações de grants atomicamente e recusam DELETE de grants
+  e UPDATE/DELETE da auditoria. A aplicação usa INSERT/UPDATE autorizados; TRUNCATE,
+  alteração de triggers e DDL exigem conta administrativa restrita. O usuário
+  PostgreSQL de desenvolvimento do Compose não representa a separação de papéis
+  exigida em produção. Não há RLS nesta entrega.
+- `ResourceAuthorization` é a camada de aplicação da política; o interceptor
+  global executa os handlers HTTP dentro de sua transação. Binding e grants ativos
+  recebem FOR SHARE via `EntityManager.execute`, mantendo locks até commit. A
+  revogação usa UPDATE nas mesmas linhas, aguarda operações já autorizadas e impede
+  as próximas. Sem cache positivo de permissões. Consultas por transação verificam
+  provider persistido; a mesma wallet admite grants para múltiplos providers.
+- O guard compara body e URL independentemente e rejeita AUTH_MODE desconhecido.
+  `challenge` permanece permissivo. Rotas públicas têm marcação explícita;
+  política ausente em OIDC falha fechada. JWT RS256/JWKS continua obrigatório.
+- Operadores usam issuer/subject validado e grant de ação separado, sem provider
+  fictício. A claim de provider continua obrigatória nas rotas de providers.
+  Read não concede resolve. A decisão e ator de resolução são auditados no mesmo
+  commit do status/nota; raw payload e nota não entram na auditoria de autorização.
+- Criar wallet requer grant de player/moeda e, para saldo positivo, autorização
+  separada de OPENING. Não há concessão implícita ao criador: a lista de grants
+  iniciais automaticamente aprovados é vazia. O resultado da criação é retornado,
+  mas leituras/operações seguintes exigem provisionamento explícito por UUID do
+  recurso persistido. Cadastro fora do grant recebe 404, sem revelar duplicidade;
+  cadastro autorizado preserva 409. Não existe política de atribuição de legados.
+- REJECTED e replays preservam persistência/snapshot: um HTTP 422 lançado pelo
+  controller não desfaz um resultado financeiro terminal já aceito pelo caso de
+  uso. A autorização é verificada antes de entrar no handler, inclusive em replay.
+  Falhas SQL na transação impedem commit e retornam 503. Denegações 403/404 da
+  camada de autorização são auditadas após rollback; autenticação/mismatch rejeitado
+  no guard não escreve uma decisão de recurso. Isso não altera o ledger financeiro.
+- Casos de uso existentes continuam sendo APIs internas confiáveis para workers.
+  As entradas HTTP obrigatoriamente passam pela camada de autorização; não expor
+  métodos financeiros internos diretamente em novos transports. SQS permanece o
+  canal interno confiável do desafio, sem interpretar body como identidade externa.
+
+### Rollback e operação
+
+O `down` recusa dados de autorização existentes sem
+`AUTHZ_ROLLBACK_BACKUP_CONFIRMED=1`. Essa variável é uma **confirmação do operador**,
+não prova automática da existência/validade de um backup. Pare entradas, faça
+backup recuperável das cinco tabelas e da auditoria, valide checksum/restauração e
+somente então confirme a variável no processo que executa `db:rollback`.
+Não use isso para reabrir tráfego OIDC com uma versão antiga permissiva.
+O teste CI exporta `pg_dump --data-only` das cinco tabelas para `.test-results/`,
+verifica checksum e só então confirma rollback no banco descartável. Migrations
+históricas não foram alteradas. Teste dedicado cobre down/up/restauração com
+preservação de timestamps PostgreSQL e de todos os registros financeiros.
+
+Limites operacionais: provisionamento de identidades/grants legítimos é manual por
+canal administrativo confiável; nenhum cliente/legado recebe acesso até aprovação.
+A auditoria e os backups contêm metadados de autorização e exigem retenção/acesso
+restritos. Grant global de ledger/saldo é compartilhamento consciente. Não foram
+implementados IdP hospedado, RLS, ingress autenticado de produção para SQS ou
+interface administrativa. Essas limitações não autorizam fallback permissivo.
+
+### Provisionamento explícito por código administrativo
+
+Use `AuthorizationStore` apenas em processo administrativo com acesso autorizado
+à conexão PostgreSQL. Exemplo de sequência (dados aprovados fornecidos por canal
+confiável, nunca derivados de um request de negócio):
+
+```ts
+const store = new AuthorizationStore(orm.em.fork());
+const actor = { issuer: adminIssuer, subject: adminSubject, source: approvedChangeId };
+await store.grant({ kind: 'binding', issuer: trustedIssuer, subject: trustedSubject,
+  providerId: approvedProvider }, actor);
+await store.grant({ kind: 'wallet', providerId: approvedProvider,
+  walletId: approvedExistingWalletId, capability: 'wager.submit' }, actor);
+// Conceder balance.read, transaction.read_own, ledger.read_all e reconcile
+// individualmente, somente se aprovados. Outro provider usa outra linha.
+await store.revoke({ kind: 'wallet', providerId: approvedProvider,
+  walletId: approvedExistingWalletId, capability: 'wager.submit' }, actor);
+```
+
+Esse processo confia na identidade administrativa estabelecida fora da aplicação;
+`actor` é atribuição de auditoria e não um mecanismo de autenticação. Conta de
+serviço HTTP/worker não deve poder executar DDL, desativar triggers, truncar essas
+tabelas ou provisionar grants por rotas externas. O Compose continua usando conta
+local de desenvolvimento; separação de credenciais PostgreSQL é requisito do deploy.

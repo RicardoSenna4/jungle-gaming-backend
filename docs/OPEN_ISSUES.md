@@ -10,11 +10,11 @@ requisito obrigatório ou falha eliminatória.
   O modo `challenge` permanece permissivo para compatibilidade com o enunciado;
   não expor a API pública nesse modo. Ainda ficam fora do escopo local a operação
   de um IdP real e rotação/monitoramento de segredos. **Bloqueio de produção:**
-  autenticação OIDC não garante isolamento por recurso. UUIDs, ledger/reconciliação,
-  criação de wallets e quarentena têm exposições reproduzidas; o GET por provider
-  também admite bypass por precedência do body. Ver [ADR-019](adr/019-provider-resource-authorization.md)
-  para evidências, matriz, dados legados e plano reversível. O enforcement permanece
-  pendente, sem inferir propriedade exclusiva de wallets.
+  o provisionamento confiável de identidades e grants precisa preceder exposição.
+  As exposições A1–A7 são tratadas em HTTP por vínculos persistentes e capabilities;
+  ver [ADR-019](adr/019-provider-resource-authorization.md). Não há backfill automático
+  ou propriedade exclusiva. Conta administrativa PostgreSQL do Compose, IdP real,
+  ingresso externo autenticado de SQS e UI administrativa não são configuração de produção.
 - **Exactly-once:** não prometido entre PostgreSQL/SQS. Eventos carregam `eventId`;
   consumidores downstream reais precisam implementar deduplicação persistente.
 - **Operação AWS:** Compose usa LocalStack; real AWS, TLS, credenciais gerenciadas,
@@ -22,8 +22,9 @@ requisito obrigatório ou falha eliminatória.
 - **FAILED:** formalizado como terminal operacional/permanente, sem alteração de
   wallet ou ledger. Mensagens inválidas são persistidas em `message_quarantine`
   antes do ACK, com consulta e resolução autenticadas; falhas transitórias
-  continuam sem ACK e seguem retry/DLQ. RBAC fino e redrive automatizado por
-  operador continuam dependentes do contrato de infraestrutura específico.
+  continuam sem ACK e seguem retry/DLQ. Grants separados de leitura/resolução
+  estão implementados; escopos por fila/consumer e redrive automatizado por operador
+  dependem do contrato de infraestrutura específico.
   Mensagens permanentemente inválidas são confirmadas após persistência na
   quarentena; **não** devem aparecer na DLQ. Falhas de processamento transitórias
   continuam sem ACK e podem seguir para a DLQ por redrive.

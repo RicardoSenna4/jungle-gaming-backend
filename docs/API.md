@@ -140,3 +140,22 @@ exposto a usuários finais.
 exigem JWT OIDC validado por JWKS; health e métricas permanecem públicos. O modo
 `challenge` é permissivo apenas para desenvolvimento/teste e não deve ser
 exposto publicamente.
+
+## Autorização OIDC por recurso
+
+JWT válido não concede acesso por UUID. O servidor exige vínculo ativo de
+`issuer/sub/provider` e capability persistida para o recurso, conforme
+[ADR-019](adr/019-provider-resource-authorization.md). Sem vínculo de identidade:
+403; recurso não autorizado/inexistente: 404; storage de autorização indisponível:
+503. Body e URL não podem declarar provider diferente da identidade autenticada.
+O modo `challenge` mantém o contrato original sem essas exigências.
+
+Saldo, ledger completo, reconciliação, submit e leitura de transação própria têm
+permissões distintas. Compartilhar wallet não compartilha as transações privadas.
+Criar exige grant de jogador/moeda; crédito inicial positivo exige grant adicional.
+A criação não concede automaticamente acesso futuro por UUID. Não há importação
+automática de legados nem endpoint público para administrar grants.
+
+Quarentena exige `quarantine.read` ou `quarantine.resolve`, separadamente, por
+issuer/subject de operador autenticado; a claim de provider não é necessária
+nessas rotas. Papéis/identidades informados no body não concedem privilégios.
