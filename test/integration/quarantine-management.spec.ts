@@ -172,7 +172,7 @@ describeIntegration(
     it('serializes concurrent redrives and deduplicates real duplicate SQS delivery financially', async () => {
       const { wallet, raw } = await seed();
       const key = randomUUID();
-      const results = await Promise.all([redrive(key), redrive(key)]);
+      const results = await Promise.all(Array.from({ length: 4 }, () => redrive(key)));
       expect(results.some((result) => result.status === 201)).toBe(true);
       for (const result of results) expect([201, 409]).toContain(result.status);
       const history = await f.http(

@@ -88,3 +88,7 @@ Os testes obrigatórios usam PG/LocalStack reais, triggers SQL para falhas de cl
 ou pós-envio, duplicata financeira, concorrência e processo Node novo para retomar
 resultado incerto. O teste expira lease no banco para abreviar a espera; isso não
 é um procedimento operacional para forçar recuperação de worker ainda ativo.
+
+Claim e finalização adquirem locks na mesma ordem (quarentena → tentativa),
+inclusive em retries simultâneos. A suíte valida quatro requisições concorrentes
+para a mesma key, sem aceitar 503/deadlock como resultado de concorrência normal.

@@ -295,6 +295,11 @@ export class QuarantineManagementService {
     }
     try {
       await db.transactional(async (tx) => {
+        // Same order as claim: quarantine row before attempt row. Opposite order deadlocks with a concurrent retry.
+        await tx.execute(
+          'select message_id from message_quarantine where consumer_name = ? and message_id = ? for update',
+          [consumer, message],
+        );
         const rows = await tx.execute(
           `update quarantine_redrive_attempts set state = ?, error_code = ?, updated_at = clock_timestamp() where id = ? and state = 'PENDING' and lease_token = ? returning id`,
           [failure ? 'FAILED' : 'SENT', failure ? 'SQS_SEND_FAILED' : null, attempt.id, token],
