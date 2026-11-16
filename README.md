@@ -146,3 +146,7 @@ As capturas demonstram os resultados observados localmente; não associam sozinh
 [Arquitetura](ARCHITECTURE.md) · [Rastreabilidade](docs/REQUIREMENTS_TRACEABILITY.md) · [API](docs/API.md) · [Como executar e usar](docs/DEMO.md) · [Evidência local](docs/EXECUTION_EVIDENCE.md) · [Evidência de CI](docs/CI_EVIDENCE.md) · [Testes](docs/TESTING.md) · [Falhas](docs/FAILURE_RECOVERY.md) · [ADRs](docs/02_ADR_REGISTER.md) · [Índice de ADRs](docs/adr/README.md) · [Auditoria](docs/FINAL_DELIVERY_AUDIT.md) · [Enunciado](CHALLENGE_SPEC.md).
 
 Os resultados vermelhos de commits intermediários permanecem no histórico; a entrega é demonstrada pelo **CI verde associado ao SHA submetido**, sem reescrever a história do projeto.
+
+Detalhes de confiança de URLs, cache/rotação, timeouts e inicialização OIDC estão
+em [OIDC_HARDENING](docs/OIDC_HARDENING.md). Em produção use issuer/JWKS HTTPS;
+fixtures locais habilitam loopback somente em test/development.

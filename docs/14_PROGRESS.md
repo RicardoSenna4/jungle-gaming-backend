@@ -433,3 +433,19 @@ docs/ADMINISTRATIVE_ACCESS.md e este progresso.
 Sem deploy, push, merge ou confirmação de CI remoto. Continuar o rollout após
 identificação do IdP/cliente/audience, subjects aprovados e coletor, com acesso
 administrativo e credenciais fornecidos pelos canais seguros.
+
+## 2026-11-16 — Tarefa 5: hardening OIDC/JWT
+
+Worktree jungle-oidc-hardening, branch security/oidc-hardening, base 8bed00d.
+origin/main confirmada por fetch em b4c0bad; trabalho anterior preservado.
+Verificador RS256/JWKS e guard mantidos, com validação de startup, issuer exato,
+URL/DNS/IP pinning, redirects bloqueados, limites de token/resposta/chaves,
+claims/algoritmos estritos, TTL/rotação atomicamente substituídos, coalescência e
+cooldown de refresh. Configuração imutável por instância; alteração exige restart.
+Timeout encerra socket explicitamente no Bun. HTTP loopback apenas por opt-in em
+test/development, ignorado em production. Nenhuma regra financeira/migration alterada.
+Testes usam IdP local real com JWKS rotativo e cenários adversariais; guard não usa
+mais mock global de fetch. Parâmetros e limites em OIDC_HARDENING.md.
+Validação final Tarefa 5: typecheck/lint/format/build passaram; **123 testes,
+17 targets, 0 falhas/erros/skips**, incluindo assinatura/claims, rotação new/same kid,
+discovery/redirect/malformed JWKS e timeout reais. Sem push/merge ou CI remoto.

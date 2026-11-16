@@ -28,6 +28,8 @@ export async function oidcHttpFixture(
   const issuer = `http://127.0.0.1:${address.port}`;
   Object.assign(process.env, {
     AUTH_MODE: 'oidc',
+    NODE_ENV: 'test',
+    OIDC_ALLOW_LOOPBACK_HTTP: 'true',
     OIDC_ISSUER_URL: issuer,
     OIDC_JWKS_URI: `${issuer}/keys`,
     OIDC_AUDIENCE: 'financial-security-tests',

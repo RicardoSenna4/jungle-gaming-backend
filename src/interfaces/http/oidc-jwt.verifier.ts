@@ -1,5 +1,7 @@
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { createPublicKey, verify as verifySignature } from 'node:crypto';
-import type { JsonWebKey as NodeJsonWebKey } from 'node:crypto';
+import type { JsonWebKey } from 'node:crypto';
+import { oidcJson, trustedOidcUrl } from './oidc-http-client';
 
 export interface AuthenticatedProviderPrincipal {
   subject: string;
@@ -7,26 +9,6 @@ export interface AuthenticatedProviderPrincipal {
   issuer: string;
   claims: Record<string, unknown>;
 }
-
-interface JwtHeader {
-  alg?: string;
-  kid?: string;
-  typ?: string;
-}
-
-interface Jwk {
-  kty: string;
-  kid?: string;
-  use?: string;
-  alg?: string;
-  n?: string;
-  e?: string;
-}
-
-interface JwksResponse {
-  keys?: Jwk[];
-}
-
 export class OidcJwtError extends Error {
   constructor(
     message: string,
@@ -36,171 +18,267 @@ export class OidcJwtError extends Error {
     this.name = 'OidcJwtError';
   }
 }
+interface Configuration {
+  issuer: string;
+  audience: string;
+  jwks?: string;
+  origins: string[];
+  loopback: boolean;
+  ttl: number;
+  timeout: number;
+  cooldown: number;
+  skew: number;
+  providerClaim: string;
+}
+type CachedKey = { key: ReturnType<typeof createPublicKey>; expiresAt: number };
 
-export class OidcJwtVerifier {
-  private readonly cache = new Map<
-    string,
-    { key: ReturnType<typeof createPublicKey>; expiresAt: number }
-  >();
+@Injectable()
+export class OidcJwtVerifier implements OnModuleInit {
+  private cache = new Map<string, CachedKey>();
   private discovery?: { jwksUri: string; expiresAt: number };
-  private readonly cacheTtlMs =
-    this.readPositiveInteger(process.env.OIDC_JWKS_CACHE_TTL_SECONDS, 300) * 1_000;
-  private readonly timeoutMs = this.readPositiveInteger(process.env.OIDC_HTTP_TIMEOUT_MS, 3_000);
+  private fingerprint = '';
+  private refreshing?: Promise<void>;
+  private lastRefresh = 0;
+
+  onModuleInit(): void {
+    const mode = (process.env.AUTH_MODE ?? 'challenge').toLowerCase();
+    if (!['challenge', 'oidc'].includes(mode)) throw new OidcJwtError('AUTH_MODE_INVALID', true);
+    if (mode === 'oidc' || process.env.METRICS_ACCESS === 'authenticated') this.configuration();
+  }
+
+  private configuration(): Configuration {
+    try {
+      const issuer = this.requiredString(process.env.OIDC_ISSUER_URL, 'OIDC_NOT_CONFIGURED');
+      const audience = this.requiredString(process.env.OIDC_AUDIENCE, 'OIDC_NOT_CONFIGURED');
+      const loopback =
+        process.env.OIDC_ALLOW_LOOPBACK_HTTP === 'true' &&
+        ['test', 'development'].includes(process.env.NODE_ENV ?? '');
+      const issuerUrl = trustedOidcUrl(issuer, loopback);
+      const jwks = process.env.OIDC_JWKS_URI;
+      if (jwks !== undefined) trustedOidcUrl(jwks, loopback);
+      const origins = (process.env.OIDC_JWKS_ALLOWED_ORIGINS ?? '')
+        .split(',')
+        .filter(Boolean)
+        .map((value) => {
+          const url = trustedOidcUrl(value.trim(), loopback);
+          if (url.pathname !== '/') throw new Error();
+          return url.origin;
+        });
+      const result = {
+        issuer,
+        audience,
+        jwks,
+        origins: [issuerUrl.origin, ...origins],
+        loopback,
+        ttl: this.number('OIDC_JWKS_CACHE_TTL_SECONDS', 300, 1, 3600) * 1000,
+        timeout: this.number('OIDC_HTTP_TIMEOUT_MS', 3000, 50, 30000),
+        cooldown: this.number('OIDC_JWKS_REFRESH_COOLDOWN_MS', 1000, 10, 60000),
+        skew: this.number('OIDC_CLOCK_SKEW_SECONDS', 30, 0, 300),
+        providerClaim: this.requiredString(
+          process.env.OIDC_PROVIDER_ID_CLAIM ?? 'providerId',
+          'OIDC_NOT_CONFIGURED',
+        ),
+      };
+      const fingerprint = JSON.stringify(result);
+      if (this.fingerprint && fingerprint !== this.fingerprint)
+        throw new Error('OIDC_CONFIGURATION_CHANGED');
+      if (fingerprint !== this.fingerprint) {
+        this.cache.clear();
+        this.discovery = undefined;
+        this.lastRefresh = 0;
+        this.fingerprint = fingerprint;
+      }
+      return result;
+    } catch {
+      throw new OidcJwtError('OIDC_CONFIGURATION_INVALID', true);
+    }
+  }
 
   async verify(
     authorization: string | undefined,
     requireProvider = true,
   ): Promise<AuthenticatedProviderPrincipal> {
+    const config = this.configuration();
     const token = this.readBearerToken(authorization);
-    const [encodedHeader, encodedPayload, encodedSignature] = token.split('.');
-    if (!encodedHeader || !encodedPayload || !encodedSignature)
-      throw new OidcJwtError('INVALID_TOKEN');
-
-    const header = this.decodeJson<JwtHeader>(encodedHeader, 'INVALID_TOKEN');
-    const claims = this.decodeJson<Record<string, unknown>>(encodedPayload, 'INVALID_TOKEN');
-    if (header.alg !== 'RS256' || !header.kid)
-      throw new OidcJwtError('UNSUPPORTED_TOKEN_ALGORITHM');
-
-    const issuer = this.requiredString(process.env.OIDC_ISSUER_URL, 'OIDC_NOT_CONFIGURED').replace(
-      /\/$/,
-      '',
-    );
-    if (claims.iss !== issuer) throw new OidcJwtError('INVALID_TOKEN_ISSUER');
-    this.validateAudience(claims.aud);
-    this.validateTimeClaims(claims);
-
-    const signingInput = `${encodedHeader}.${encodedPayload}`;
-    const signature = this.decodeBase64Url(encodedSignature, 'INVALID_TOKEN');
-    let key = this.cache.get(header.kid);
-    if (!key || key.expiresAt <= Date.now()) {
-      await this.refreshKeys();
-      key = this.cache.get(header.kid);
-    }
-    if (!key) throw new OidcJwtError('UNKNOWN_TOKEN_KEY');
-
-    if (!verifySignature('RSA-SHA256', Buffer.from(signingInput), key.key, signature)) {
-      throw new OidcJwtError('INVALID_TOKEN_SIGNATURE');
-    }
-
-    const subject = this.requiredString(claims.sub, 'INVALID_TOKEN_SUBJECT');
-    const providerClaim = process.env.OIDC_PROVIDER_ID_CLAIM ?? 'providerId';
-    const providerId = requireProvider
-      ? this.requiredString(claims[providerClaim], 'TOKEN_PROVIDER_MISSING')
-      : undefined;
-    return { subject, providerId, issuer, claims };
-  }
-
-  private async refreshKeys(): Promise<void> {
-    const jwksUri = await this.resolveJwksUri();
-    let response: Response;
-    try {
-      response = await fetch(jwksUri, { signal: AbortSignal.timeout(this.timeoutMs) });
-    } catch {
-      throw new OidcJwtError('OIDC_PROVIDER_UNAVAILABLE', true);
-    }
-    if (!response.ok) throw new OidcJwtError('OIDC_JWKS_UNAVAILABLE', true);
-    let body: JwksResponse;
-    try {
-      body = (await response.json()) as JwksResponse;
-    } catch {
-      throw new OidcJwtError('INVALID_OIDC_JWKS', true);
-    }
-    if (!Array.isArray(body.keys)) throw new OidcJwtError('INVALID_OIDC_JWKS', true);
-
-    const expiresAt = Date.now() + this.cacheTtlMs;
-    for (const jwk of body.keys) {
-      if (jwk.kty !== 'RSA' || !jwk.kid || !jwk.n || !jwk.e || (jwk.use && jwk.use !== 'sig'))
-        continue;
-      try {
-        this.cache.set(jwk.kid, {
-          key: createPublicKey({ key: jwk as NodeJsonWebKey, format: 'jwk' }),
-          expiresAt,
-        });
-      } catch {
-        // Ignore malformed keys; a token using one will fail closed.
-      }
-    }
-    if (this.cache.size === 0) throw new OidcJwtError('INVALID_OIDC_JWKS', true);
-  }
-
-  private async resolveJwksUri(): Promise<string> {
-    const configured = process.env.OIDC_JWKS_URI;
-    if (configured) return configured;
-    if (this.discovery && this.discovery.expiresAt > Date.now()) return this.discovery.jwksUri;
-    const issuer = this.requiredString(process.env.OIDC_ISSUER_URL, 'OIDC_NOT_CONFIGURED').replace(
-      /\/$/,
-      '',
-    );
-    let response: Response;
-    try {
-      response = await fetch(`${issuer}/.well-known/openid-configuration`, {
-        signal: AbortSignal.timeout(this.timeoutMs),
-      });
-    } catch {
-      throw new OidcJwtError('OIDC_PROVIDER_UNAVAILABLE', true);
-    }
-    if (!response.ok) throw new OidcJwtError('OIDC_DISCOVERY_UNAVAILABLE', true);
-    const body = (await response.json()) as { jwks_uri?: unknown };
-    if (typeof body.jwks_uri !== 'string' || !body.jwks_uri) {
-      throw new OidcJwtError('INVALID_OIDC_DISCOVERY', true);
-    }
-    this.discovery = { jwksUri: body.jwks_uri, expiresAt: Date.now() + this.cacheTtlMs };
-    return body.jwks_uri;
-  }
-
-  private validateAudience(audience: unknown): void {
-    const expected = process.env.OIDC_AUDIENCE;
-    if (!expected) throw new OidcJwtError('OIDC_NOT_CONFIGURED');
-    const values = Array.isArray(audience) ? audience : [audience];
-    if (!values.includes(expected)) throw new OidcJwtError('INVALID_TOKEN_AUDIENCE');
-  }
-
-  private validateTimeClaims(claims: Record<string, unknown>): void {
-    const now = Math.floor(Date.now() / 1_000);
-    const clockSkew = this.readPositiveInteger(process.env.OIDC_CLOCK_SKEW_SECONDS, 30);
-    if (typeof claims.exp !== 'number' || claims.exp + clockSkew < now) {
-      throw new OidcJwtError('TOKEN_EXPIRED');
-    }
+    const parts = token.split('.');
+    if (parts.length !== 3) throw new OidcJwtError('INVALID_TOKEN');
+    const [encodedHeader, encodedPayload, encodedSignature] = parts as [string, string, string];
+    const header = this.decodeJson(encodedHeader);
+    const claims = this.decodeJson(encodedPayload);
     if (
-      claims.nbf !== undefined &&
-      (typeof claims.nbf !== 'number' || claims.nbf - clockSkew > now)
-    ) {
-      throw new OidcJwtError('TOKEN_NOT_ACTIVE');
+      header.alg !== 'RS256' ||
+      typeof header.kid !== 'string' ||
+      !header.kid.trim() ||
+      header.kid.length > 128 ||
+      header.crit !== undefined ||
+      header.b64 !== undefined ||
+      (header.typ !== undefined && header.typ !== 'JWT' && header.typ !== 'at+jwt')
+    )
+      throw new OidcJwtError('UNSUPPORTED_TOKEN_ALGORITHM');
+    if (claims.iss !== config.issuer) throw new OidcJwtError('INVALID_TOKEN_ISSUER');
+    this.validateAudience(claims.aud, config.audience);
+    this.validateTimeClaims(claims, config.skew);
+    const subject = this.requiredString(claims.sub, 'INVALID_TOKEN_SUBJECT');
+    const providerId = requireProvider
+      ? this.requiredString(claims[config.providerClaim], 'TOKEN_PROVIDER_MISSING')
+      : undefined;
+    const signature = this.decodeBase64Url(encodedSignature);
+    const signingInput = Buffer.from(`${encodedHeader}.${encodedPayload}`);
+    let cached = this.cache.get(header.kid);
+    if (!cached || cached.expiresAt <= Date.now()) {
+      await this.refreshKeys(config, !cached);
+      cached = this.cache.get(header.kid);
+    }
+    if (!cached || cached.expiresAt <= Date.now()) throw new OidcJwtError('UNKNOWN_TOKEN_KEY');
+    if (!verifySignature('RSA-SHA256', signingInput, cached.key, signature)) {
+      // Supports same-kid rotation without allowing a refresh for every forged signature.
+      if (Date.now() - this.lastRefresh >= config.cooldown) {
+        await this.refreshKeys(config, false);
+        cached = this.cache.get(header.kid);
+      }
+      if (
+        !cached ||
+        cached.expiresAt <= Date.now() ||
+        !verifySignature('RSA-SHA256', signingInput, cached.key, signature)
+      )
+        throw new OidcJwtError('INVALID_TOKEN_SIGNATURE');
+    }
+    return { subject, providerId, issuer: config.issuer, claims };
+  }
+
+  private async refreshKeys(config: Configuration, unknownKid: boolean): Promise<void> {
+    if (this.refreshing) return this.refreshing;
+    if (Date.now() - this.lastRefresh < config.cooldown)
+      throw new OidcJwtError(
+        unknownKid ? 'UNKNOWN_TOKEN_KEY' : 'OIDC_REFRESH_THROTTLED',
+        !unknownKid,
+      );
+    this.lastRefresh = Date.now();
+    this.refreshing = (async () => {
+      try {
+        const uri = await this.resolveJwksUri(config);
+        const body = await oidcJson(
+          trustedOidcUrl(uri, config.loopback),
+          config.timeout,
+          config.loopback,
+        );
+        if (!Array.isArray(body.keys) || !body.keys.length || body.keys.length > 32)
+          throw new Error();
+        const next = new Map<string, CachedKey>();
+        for (const value of body.keys) {
+          if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error();
+          const jwk = value as Record<string, unknown>;
+          if (
+            jwk.kty !== 'RSA' ||
+            (jwk.use !== undefined && jwk.use !== 'sig') ||
+            (jwk.alg !== undefined && jwk.alg !== 'RS256')
+          )
+            continue;
+          if (
+            typeof jwk.kid !== 'string' ||
+            !jwk.kid.trim() ||
+            jwk.kid.length > 128 ||
+            next.has(jwk.kid) ||
+            typeof jwk.n !== 'string' ||
+            typeof jwk.e !== 'string' ||
+            ['d', 'p', 'q', 'dp', 'dq', 'qi'].some((field) => jwk[field] !== undefined) ||
+            (jwk.key_ops !== undefined &&
+              (!Array.isArray(jwk.key_ops) || !jwk.key_ops.includes('verify')))
+          )
+            throw new Error();
+          this.decodeBase64Url(jwk.n);
+          this.decodeBase64Url(jwk.e);
+          const key = createPublicKey({ key: jwk as JsonWebKey, format: 'jwk' });
+          if ((key.asymmetricKeyDetails?.modulusLength ?? 0) < 2048) throw new Error();
+          next.set(jwk.kid, { key, expiresAt: Date.now() + config.ttl });
+        }
+        if (!next.size) throw new Error();
+        this.cache = next; // Removed keys disappear; old snapshots never accumulate.
+      } catch {
+        throw new OidcJwtError('OIDC_KEYS_UNAVAILABLE', true);
+      }
+    })();
+    try {
+      await this.refreshing;
+    } finally {
+      this.refreshing = undefined;
     }
   }
 
+  private async resolveJwksUri(config: Configuration): Promise<string> {
+    if (config.jwks) return config.jwks;
+    if (this.discovery && this.discovery.expiresAt > Date.now()) return this.discovery.jwksUri;
+    const body = await oidcJson(
+      trustedOidcUrl(
+        `${config.issuer.replace(/\/$/, '')}/.well-known/openid-configuration`,
+        config.loopback,
+      ),
+      config.timeout,
+      config.loopback,
+    );
+    if (body.issuer !== config.issuer || typeof body.jwks_uri !== 'string') throw new Error();
+    const url = trustedOidcUrl(body.jwks_uri, config.loopback);
+    if (!config.origins.includes(url.origin)) throw new Error();
+    this.discovery = { jwksUri: url.toString(), expiresAt: Date.now() + config.ttl };
+    return url.toString();
+  }
+  private validateAudience(audience: unknown, expected: string): void {
+    const values = Array.isArray(audience) ? audience : [audience];
+    if (
+      !values.length ||
+      values.length > 32 ||
+      !values.every((value) => typeof value === 'string' && value.trim()) ||
+      !values.includes(expected)
+    )
+      throw new OidcJwtError('INVALID_TOKEN_AUDIENCE');
+  }
+  private validateTimeClaims(claims: Record<string, unknown>, skew: number): void {
+    const now = Math.floor(Date.now() / 1000);
+    if (
+      !Number.isSafeInteger(claims.exp) ||
+      Number(claims.exp) < 0 ||
+      Number(claims.exp) + skew <= now
+    )
+      throw new OidcJwtError('TOKEN_EXPIRED');
+    for (const field of ['nbf', 'iat'])
+      if (
+        claims[field] !== undefined &&
+        (!Number.isSafeInteger(claims[field]) ||
+          Number(claims[field]) < 0 ||
+          Number(claims[field]) - skew > now)
+      )
+        throw new OidcJwtError('TOKEN_NOT_ACTIVE');
+  }
   private readBearerToken(authorization: string | undefined): string {
-    const match = authorization?.match(/^Bearer\s+([^\s]+)$/i);
+    const match = authorization?.match(/^Bearer\s+([A-Za-z0-9_.-]+)$/i);
     if (!match?.[1]) throw new OidcJwtError('AUTHORIZATION_REQUIRED');
+    if (match[1].length > 16384) throw new OidcJwtError('INVALID_TOKEN');
     return match[1];
   }
-
-  private decodeJson<T>(value: string, errorCode: string): T {
+  private decodeJson(value: string): Record<string, unknown> {
     try {
-      return JSON.parse(this.decodeBase64Url(value, errorCode).toString('utf8')) as T;
+      const decoded: unknown = JSON.parse(this.decodeBase64Url(value).toString('utf8'));
+      if (!decoded || typeof decoded !== 'object' || Array.isArray(decoded)) throw new Error();
+      return decoded as Record<string, unknown>;
     } catch {
-      throw new OidcJwtError(errorCode);
+      throw new OidcJwtError('INVALID_TOKEN');
     }
   }
-
-  private decodeBase64Url(value: string, errorCode: string): Buffer {
-    try {
-      const decoded = Buffer.from(value, 'base64url');
-      if (!decoded.length) throw new Error(errorCode);
-      return decoded;
-    } catch {
-      throw new OidcJwtError(errorCode);
-    }
+  private decodeBase64Url(value: string): Buffer {
+    if (!value || !/^[A-Za-z0-9_-]+$/.test(value)) throw new OidcJwtError('INVALID_TOKEN');
+    const bytes = Buffer.from(value, 'base64url');
+    if (!bytes.length || bytes.toString('base64url') !== value)
+      throw new OidcJwtError('INVALID_TOKEN');
+    return bytes;
   }
-
-  private requiredString(value: unknown, errorCode: string): string {
-    if (typeof value !== 'string' || !value) throw new OidcJwtError(errorCode);
+  private requiredString(value: unknown, code: string): string {
+    if (typeof value !== 'string' || !value.trim() || value.length > 2048)
+      throw new OidcJwtError(code);
     return value;
   }
-
-  private readPositiveInteger(value: string | undefined, fallback: number): number {
-    const parsed = value === undefined ? fallback : Number.parseInt(value, 10);
-    if (!Number.isInteger(parsed) || parsed < 1) return fallback;
-    return parsed;
+  private number(name: string, fallback: number, min: number, max: number): number {
+    const value = process.env[name] === undefined ? fallback : Number(process.env[name]);
+    if (!Number.isInteger(value) || value < min || value > max) throw new Error();
+    return value;
   }
 }

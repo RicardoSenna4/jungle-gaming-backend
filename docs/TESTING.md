@@ -108,3 +108,10 @@ auditoria sem dados sensíveis nos logs. Cobre claims/papéis configuráveis e p
 de `/metrics` em OIDC/challenge/production, sem desligar asserts ou introduzir skips.
 `administrative-claims-policy.spec.ts` valida comparação exata, valores malformados
 e configuração fail-closed. O spec HTTP está registrado no runner obrigatório.
+
+## Hardening OIDC (Tarefa 5)
+
+Os testes de guard e `oidc-hardening.spec.ts` usam um IdP HTTP real em loopback,
+com RSA 2048, JWKS rotativo, falhas, timeout e discovery adversarial. O bypass de
+TLS local exige `NODE_ENV=test|development` e `OIDC_ALLOW_LOOPBACK_HTTP=true`;
+produção ignora essa exceção. Os fixtures de integração declaram isso explicitamente.

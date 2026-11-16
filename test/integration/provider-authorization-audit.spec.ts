@@ -38,6 +38,8 @@ describeIntegration(
       if (!address || typeof address === 'string') throw new Error('JWKS listener unavailable');
       Object.assign(process.env, {
         AUTH_MODE: 'oidc',
+        NODE_ENV: 'test',
+        OIDC_ALLOW_LOOPBACK_HTTP: 'true',
         OIDC_ISSUER_URL: `http://127.0.0.1:${address.port}`,
         OIDC_JWKS_URI: `http://127.0.0.1:${address.port}/keys`,
         OIDC_AUDIENCE: 'authorization-audit',

@@ -1,3 +1,4 @@
+import { createServer, Server } from 'node:http';
 import { ExecutionContext } from '@nestjs/common';
 import { generateKeyPairSync, createSign } from 'node:crypto';
 import {
@@ -20,11 +21,25 @@ describe('ChallengeProviderIdentityGuard', () => {
   const originalEnv = { ...process.env };
   const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
   const publicJwk = publicKey.export({ format: 'jwk' }) as { kty: string; n: string; e: string };
-  const originalFetch = globalThis.fetch;
+  let server: Server;
+  let issuer: string;
+  beforeAll(async () => {
+    server = createServer((_req, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ keys: [{ ...publicJwk, kid: 'key-1', use: 'sig' }] }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error();
+    issuer = `http://127.0.0.1:${address.port}`;
+  });
+  afterAll(async () => {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
 
   afterEach(() => {
     process.env = { ...originalEnv };
-    globalThis.fetch = originalFetch;
   });
 
   function token(claims: Record<string, unknown>): string {
@@ -39,15 +54,12 @@ describe('ChallengeProviderIdentityGuard', () => {
 
   function configure() {
     process.env.AUTH_MODE = 'oidc';
-    process.env.OIDC_ISSUER_URL = 'https://issuer.example.test';
+    process.env.OIDC_ISSUER_URL = issuer;
+    process.env.NODE_ENV = 'test';
+    process.env.OIDC_ALLOW_LOOPBACK_HTTP = 'true';
     process.env.OIDC_AUDIENCE = 'jungle-api';
-    process.env.OIDC_JWKS_URI = 'https://issuer.example.test/keys';
+    process.env.OIDC_JWKS_URI = `${issuer}/keys`;
     process.env.OIDC_PROVIDER_ID_CLAIM = 'providerId';
-    globalThis.fetch = (async () =>
-      new Response(JSON.stringify({ keys: [{ ...publicJwk, kid: 'key-1', use: 'sig' }] }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      })) as typeof fetch;
   }
 
   it('keeps challenge mode explicit and permissive when OIDC is disabled', async () => {
